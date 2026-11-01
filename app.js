@@ -63,6 +63,7 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
+// Funzione OCR Cloud ad altissima velocità (Soluzione 1)
 function scanImage(input) {
     if (!input.files || input.files.length === 0) return;
     unlockAudio();
@@ -73,76 +74,79 @@ function scanImage(input) {
     
     btnScan.disabled = true;
     btnScan.style.opacity = "0.6";
-    btnScan.innerText = "⏳ Analisi...";
+    btnScan.innerText = "⏳ Analisi cloud...";
     
-    notifyUser("🔍 Lettura e ottimizzazione...", "Sto elaborando l'immagine velocemente.", "info");
+    notifyUser("🔍 Invio al server...", "Sto leggendo la lista tramite server veloce.", "info");
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const maxW = 1000;
-            const scale = maxW / img.width;
-            canvas.width = maxW;
-            canvas.height = img.height * scale;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("language", "ita");
+    formData.append("isOverlayRequired", "false");
+    formData.append("scale", "true");
+    formData.append("apikey", "helloworld"); // Chiave demo gratuita universale ed illimitata di OCR.space
+
+    fetch("https://ocr.space", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result && result.ParsedResults && result.ParsedResults.length > 0) {
+            const text = result.ParsedResults[0].ParsedText;
+            if (!text || text.trim() === "") {
+                notifyUser("❌ Nessun testo trovato", "Immagine non leggibile o sfocata.", "danger");
+                return;
+            }
+
+            // Normalizza i fine riga multipiattaforma
+            const lines = text.split(/\r?\n/);
+            let aggiuntiCount = 0;
+            let aggiornatiCount = 0;
             
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const optimizedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+            lines.forEach(line => {
+                // Rimuove i prezzi finali, cifre decimali e simboli di valuta comuni negli scontrini
+                let cleanName = line.replace(/[\d+.,\s€]+$/, '').trim();
+                // Rimuove caratteri speciali spuri preservando lettere ed accentate
+                cleanName = cleanName.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
 
-            Tesseract.recognize(
-                optimizedBase64,
-                'ita',
-                { cacheMethod: 'write', workerBlobURL: false }
-            ).then(({ data: { text } }) => {
-                if (!text || text.trim() === "") {
-                    notifyUser("❌ Nessun testo trovato", "Non ho trovato scritte leggibili.", "danger");
-                    return;
-                }
-
-                const lines = text.split('\n');
-                let aggiuntiCount = 0;
-                let aggiornatiCount = 0;
-
-                lines.forEach(line => {
-                    let cleanName = line.replace(/[\\|#*_\-\[\]\{\}]/g, '').trim();
-                    cleanName = cleanName.replace(/\s\d+[\.,]\d{2}$/, '').trim();
-                    cleanName = cleanName.replace(/^\d+\s+/, '').trim();
-
-                    if (cleanName.length > 2 && isNaN(cleanName)) {
-                        const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
-                        
-                        if (existingItem) {
-                            existingItem.quantity += 1;
-                            aggiornatiCount++;
-                        } else {
-                            items.push({ id: Date.now() + Math.random(), name: cleanName, isPromo: false, completed: false, quantity: 1 });
-                            aggiuntiCount++;
-                        }
+                if (cleanName.length > 2 && isNaN(cleanName)) {
+                    const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
+                    if (existingItem) {
+                        existingItem.quantity += 1;
+                        aggiornatiCount++;
+                    } else {
+                        items.push({ 
+                            id: Date.now() + Math.random(), 
+                            name: cleanName, 
+                            isPromo: false, 
+                            completed: false, 
+                            quantity: 1 
+                        });
+                        aggiuntiCount++;
                     }
-                });
-
-                saveItems();
-                renderItems();
-                
-                const resText = `Scansione: +${aggiuntiCount} articoli, aggiornati ${aggiornatiCount}.`;
-                const resVocal = `Scansione completata. Ho inserito ${aggiuntiCount} nuovi prodotti.`;
-                notifyUser(resText, resVocal, 'info');
-
-            }).catch(err => {
-                console.error(err);
-                notifyUser("❌ Errore di lettura", "Impossibile elaborare questa immagine.", "danger");
-            }).finally(() => {
-                btnScan.disabled = false;
-                btnScan.style.opacity = "1";
-                btnScan.innerHTML = originalText;
-                input.value = ""; 
+                }
             });
-        };
-        img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+
+            saveItems();
+            renderItems();
+            
+            const msgText = `Scansione: +${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
+            const msgVocal = `Scansione completata. Ho aggiunto ${aggiuntiCount} nuovi articoli e aggiornato la quantità per altri ${aggiornatiCount}.`;
+            notifyUser(msgText, msgVocal, 'info');
+        } else {
+            notifyUser("❌ Errore di lettura", "Il server non ha risposto correttamente.", "danger");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        notifyUser("❌ Errore connessione", "Controlla la connessione internet del tuo dispositivo.", "danger");
+    })
+    .finally(() => {
+        btnScan.disabled = false;
+        btnScan.style.opacity = "1";
+        btnScan.innerHTML = originalText;
+        input.value = "";
+    });
 }
 function addItemManual(e) {
     if (e && e.preventDefault) e.preventDefault();
