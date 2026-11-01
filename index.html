@@ -57,7 +57,6 @@
 </head>
 <body>
     <div id="toast-container"></div>
-
     <div id="login-screen">
         <div class="login-box">
             <h2 id="login-title">🔒 Area Riservata</h2>
@@ -91,22 +90,34 @@
         <ul id="shopping-list"></ul>
         <button class="btn-clear-all" onclick="clearAllItems()">🗑️ Svuota Intera Lista</button>
     </div>
-
     <script src="app.js"></script>
 </body>
 </html>
 let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
 let systemPassword = localStorage.getItem('secure_app_password');
+let audioUnlocked = false;
 
-window.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     if (!systemPassword) {
-        document.getElementById('login-title').innerText = '🆕 Imposta Password';
-        document.getElementById('login-desc').innerText = 'Scegli un codice segreto di sblocco per questa applicazione.';
+        const titleEl = document.getElementById('login-title');
+        const descEl = document.getElementById('login-desc');
+        if (titleEl) titleEl.innerText = '🆕 Imposta Password';
+        if (descEl) descEl.innerText = 'Scegli un codice segreto di sblocco per questa applicazione.';
     }
 });
 
+function unlockAudio() {
+    if (audioUnlocked) return;
+    if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(u);
+        audioUnlocked = true;
+    }
+}
+
 function checkPassword(e) {
     e.preventDefault();
+    unlockAudio();
     const input = document.getElementById('password-input').value;
     if (!systemPassword) {
         if (input.trim().length < 4) { alert("Usa almeno 4 caratteri."); return; }
@@ -116,13 +127,21 @@ function checkPassword(e) {
     }
 }
 
-function unlockApp() { document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; renderItems(); }
-function logout() { document.getElementById('password-input').value = ''; document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
+function unlockApp() { 
+    document.getElementById('login-screen').style.display = 'none'; 
+    document.getElementById('app-screen').style.display = 'block'; 
+    renderItems(); 
+}
+
+function logout() { 
+    document.getElementById('password-input').value = ''; 
+    document.getElementById('app-screen').style.display = 'none'; 
+    document.getElementById('login-screen').style.display = 'flex'; 
+}
+
 function saveItems() { localStorage.setItem('secure_shopping_items', JSON.stringify(items)); }
 
-// Funzione combinata per avviso Testuale (Toast) e Vocale (Sintesi Vocale)
 function notifyUser(textMessage, vocalMessage, type = 'info') {
-    // 1. Avviso Testuale
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
@@ -130,20 +149,18 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     container.appendChild(toast);
     setTimeout(() => { toast.remove(); }, 3000);
 
-    // 2. Avviso Vocale
     if ('speechSynthesis' in window) {
-        // Interrompe riproduzioni precedenti per evitare sovrapposizioni
         window.speechSynthesis.cancel(); 
         const utterance = new SpeechSynthesisUtterance(vocalMessage);
         utterance.lang = 'it-IT';
-        utterance.rate = 1.1; // Velocità di lettura naturale
+        utterance.rate = 1.1; 
         window.speechSynthesis.speak(utterance);
     }
 }
 
-// Aggiunta articoli con gestione duplicati, avviso di testo e voce
 function addItemManual(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    unlockAudio();
     const inputEl = document.getElementById('item-input');
     const promoCheckbox = document.getElementById('promo-checkbox');
     const name = inputEl.value.trim();
@@ -151,22 +168,13 @@ function addItemManual(e) {
 
     if (!name) return;
 
-    // Controllo duplicati basato su nome e tipo (se in promo o meno)
     const existingItem = items.find(item => item.name.toLowerCase() === name.toLowerCase() && item.isPromo === isPromo);
 
     if (existingItem) {
         existingItem.quantity += 1;
-        const msgText = `➕ Quantità aggiornata: ${existingItem.name} (${existingItem.quantity})`;
-        const msgVocal = `Quantità aggiornata per ${existingItem.name}. Ora sono ${existingItem.quantity}`;
-        notifyUser(msgText, msgVocal, 'info');
+        notifyUser(`➕ Quantità aggiornata: ${existingItem.name} (${existingItem.quantity})`, `Quantità aggiornata per ${existingItem.name}. Ora sono ${existingItem.quantity}`, 'info');
     } else {
-        const newItem = {
-            id: Date.now(),
-            name: name,
-            isPromo: isPromo,
-            completed: false,
-            quantity: 1
-        };
+        const newItem = { id: Date.now(), name: name, isPromo: isPromo, completed: false, quantity: 1 };
         items.push(newItem);
         notifyUser(`🛒 Aggiunto: ${name}`, `Aggiunto ${name}`);
     }
@@ -179,6 +187,7 @@ function addItemManual(e) {
 
 function renderItems() {
     const listEl = document.getElementById('shopping-list');
+    if (!listEl) return;
     listEl.innerHTML = '';
 
     items.forEach(item => {
@@ -205,23 +214,20 @@ function toggleComplete(id) {
     renderItems();
 }
 
-// Eliminazione articolo con avviso di testo e voce
 function deleteItem(id) {
+    unlockAudio();
     const itemToDelete = items.find(item => item.id === id);
     if (itemToDelete) {
-        const msgText = `🗑️ Rimosso: ${itemToDelete.name}`;
-        const msgVocal = `Articolo ${itemToDelete.name} rimosso dalla lista`;
-        notifyUser(msgText, msgVocal, 'danger');
-        
+        notifyUser(`🗑️ Rimosso: ${itemToDelete.name}`, `Articolo ${itemToDelete.name} rimosso dalla lista`, 'danger');
         items = items.filter(item => item.id !== id);
         saveItems();
         renderItems();
     }
 }
 
-// Svuotamento totale lista
 function clearAllItems() {
     if (items.length === 0) return;
+    unlockAudio();
     if (confirm("Sei sicuro di voler svuotare l'intera lista della spesa?")) {
         items = [];
         notifyUser("🚨 Intera lista svuotata!", "Lista della spesa svuotata completamente", "danger");
@@ -231,24 +237,33 @@ function clearAllItems() {
 }
 
 function startVoiceRecognition() {
+    unlockAudio();
     const btn = document.getElementById('btn-vocal');
-    if (!('webkitSpeechRecognition' in window) && !('speechRecognition' in window)) {
-        alert("Il riconoscimento vocale non è supportato su questo browser.");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Il riconoscimento vocale non è supportato o richiede permessi espliciti su questo browser mobile.");
         return;
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
     const recognition = new SpeechRecognition();
     recognition.lang = 'it-IT';
+    recognition.continuous = false;
+    recognition.interimResults = false;
     
     recognition.onstart = () => { btn.classList.add('listening'); btn.innerText = '⏳ Ascolto...'; };
     recognition.onend = () => { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; };
     
     recognition.onresult = (event) => {
-        const text = event.results.transcript;
-        if(text.trim()) {
-            document.getElementById('item-input').value = text;
-            addItemManual({ preventDefault: () => {} });
+        if (event.results && event.results[0] && event.results[0][0]) {
+            const text = event.results[0][0].transcript;
+            if (text && text.trim()) {
+                document.getElementById('item-input').value = text;
+                addItemManual();
+            }
         }
     };
+    
+    recognition.onerror = () => { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; };
     recognition.start();
 }
