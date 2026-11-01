@@ -63,34 +63,38 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Nuova logica di estrazione vocale rinforzata contro abbreviazioni, punti e spazi
+// Algoritmo di estrazione totale: trova il primo numero isolato nella frase per impostare la quantità
 function parseQuantityAndName(rawInput) {
-    let text = rawInput.trim().toLowerCase();
+    let rawText = rawInput.trim();
     
-    // 1. Rimuove prefissi testuali ed espressioni come "numero", "n.", "n°", "pezzi di" ovunque all'inizio
-    text = text.replace(/^(numero|n\.|n°|pezzi di|pezzo di|pacchi di|pacco di|bottiglie di|bottiglia di|quantità|q\.ta|x)\s*/g, '');
+    // Cerca qualsiasi sequenza numerica contenuta nella stringa
+    const numberMatch = rawText.match(/\d+/);
     
-    // 2. Rimuove ulteriormente eventuali punti o spazi rimasti attaccati (es: ".3" o " . 3")
-    text = text.replace(/^[\.\s°#\-x]+/g, '').trim();
-
-    // 3. Intercetta il numero e isola il testo rimanente del prodotto
-    const match = text.match(/^(\d+)\s+(.+)$/);
-    
-    if (match) {
-        let quantity = parseInt(match[1], 10);
-        let name = match[2].trim();
+    if (numberMatch) {
+        // Estrae il primo numero trovato (es: 3)
+        let quantity = parseInt(numberMatch[0], 10);
         
-        // Rimuove parole di raccordo residue inserite dalla sintesi vocale (es: "3 di pane" -> "pane")
-        name = name.replace(/^(di numero pezzi|di numero pezzo|numero pezzi|pezzi di|pezzo di|di|del|dei|delle)\s+/g, '');
+        // Rimuove il numero trovato dal testo originale
+        let nameWithoutNumber = rawText.replace(numberMatch[0], '');
         
-        // Ripristina la prima lettera maiuscola per estetica nella lista
-        name = name.charAt(0).toUpperCase() + name.slice(1);
+        // Pulisce e rimuove tutte le abbreviazioni, lettere isolate "n", punti, congiunzioni e raccordi
+        let cleanName = nameWithoutNumber.toLowerCase();
+        cleanName = cleanName.replace(/^(numero|n\.|n°|pezzi di|pezzo di|pacchi di|pacco di|bottiglie di|bottiglia di|quantità|q\.ta|x|\s)+/g, '');
+        cleanName = cleanName.replace(/\b(di|del|dei|delle|di numero|pezzi|pezzo)\b/g, '');
         
-        return { quantity, name };
+        // Rimuove spazi doppi o caratteri di punteggiatura residui
+        cleanName = cleanName.replace(/[\.\,°#\-]/g, '').replace(/\s+/g, ' ').trim();
+        
+        // Se dopo la pulizia il nome è valido, applica la maiuscola iniziale ed esce
+        if (cleanName.length > 0 && isNaN(cleanName)) {
+            cleanName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+            return { quantity, name: cleanName };
+        }
     }
     
-    // Se non viene rilevato alcun numero iniziale, imposta quantità 1 e applica la maiuscola
-    let defaultName = text.charAt(0).toUpperCase() + text.slice(1);
+    // Fallback: se non c'è nessun numero, imposta quantità 1 e pulisce il testo normalmente
+    let defaultName = rawText.replace(/^(numero|n\.|n°|x|\s)+/gi, '').trim();
+    defaultName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
     return { quantity: 1, name: defaultName };
 }
 
