@@ -63,13 +63,12 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Funzione OCR Cloud corretta per bypassare i blocchi di sicurezza dei moduli d'invio
+// Funzione OCR Cloud corretta: converte localmente in stringa di testo Base64 per evitare i blocchi mobili
 function scanImage(input) {
     if (!input.files || input.files.length === 0) return;
     unlockAudio();
     
-    // Estrae il singolo oggetto file reale per evitare che l'invio fallisca
-    const fileTarget = input.files[0];
+    const file = input.files[0]; // Estrae l'oggetto file binario esatto
     const btnScan = document.getElementById('btn-scan');
     const originalText = btnScan.innerHTML;
     
@@ -77,78 +76,85 @@ function scanImage(input) {
     btnScan.style.opacity = "0.6";
     btnScan.innerText = "⏳ Analisi cloud...";
     
-    notifyUser("🔍 Invio al server...", "Sto leggendo la lista tramite server veloce.", "info");
+    notifyUser("🔍 Elaborazione immagine...", "Sto preparando i dati per l'analisi rapida.", "info");
 
-    const formData = new FormData();
-    formData.append("file", fileTarget);
-    formData.append("language", "ita");
-    formData.append("isOverlayRequired", "false");
-    formData.append("scale", "true");
-    formData.append("apikey", "helloworld"); 
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64String = e.target.result; // Contiene l'immagine tradotta in stringa di testo sicura
 
-    // Esegue la chiamata al server cloud senza forzare intestazioni restrittive
-    fetch("https://ocr.space", {
-        method: "POST",
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) throw new Error("Risposta del server non valida");
-        return response.json();
-    })
-    .then(result => {
-        if (result && result.ParsedResults && result.ParsedResults.length > 0) {
-            const text = result.ParsedResults[0].ParsedText;
-            if (!text || text.trim() === "") {
-                notifyUser("❌ Nessun testo trovato", "Immagine non leggibile o sfocata.", "danger");
-                return;
-            }
+        const formData = new FormData();
+        formData.append("base64Image", base64String); // Invia come stringa di testo nativa (aggira i blocchi CORS)
+        formData.append("language", "ita");
+        formData.append("isOverlayRequired", "false");
+        formData.append("scale", "true");
+        formData.append("apikey", "helloworld"); 
 
-            const lines = text.split(/\r?\n/);
-            let aggiuntiCount = 0;
-            let aggiornatiCount = 0;
-            
-            lines.forEach(line => {
-                let cleanName = line.replace(/[\d+.,\s€]+$/, '').trim();
-                cleanName = cleanName.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
-
-                if (cleanName.length > 2 && isNaN(cleanName)) {
-                    const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
-                    if (existingItem) {
-                        existingItem.quantity += 1;
-                        aggiornatiCount++;
-                    } else {
-                        items.push({ 
-                            id: Date.now() + Math.random(), 
-                            name: cleanName, 
-                            isPromo: false, 
-                            completed: false, 
-                            quantity: 1 
-                        });
-                        aggiuntiCount++;
-                    }
+        fetch("https://api.ocr.space/parse/image", {
+            method: "POST",
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("Server offline o rifiuto della richiesta");
+            return response.json();
+        })
+        .then(result => {
+            if (result && result.ParsedResults && result.ParsedResults.length > 0) {
+                const text = result.ParsedResults[0].ParsedText;
+                if (!text || text.trim() === "") {
+                    notifyUser("❌ Nessun testo trovato", "Immagine non leggibile o sfocata.", "danger");
+                    return;
                 }
-            });
 
-            saveItems();
-            renderItems();
-            
-            const msgText = `Scansione: +${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
-            const msgVocal = `Scansione completata. Ho aggiunto ${aggiuntiCount} nuovi articoli.`;
-            notifyUser(msgText, msgVocal, 'info');
-        } else {
-            notifyUser("❌ Errore di lettura", "Il server non ha risposto correttamente.", "danger");
-        }
-    })
-    .catch(err => {
-        console.error("Errore Fetch:", err);
-        notifyUser("❌ Errore di invio", "Il browser o il server ha rifiutato l'immagine. Riprova.", "danger");
-    })
-    .finally(() => {
-        btnScan.disabled = false;
-        btnScan.style.opacity = "1";
-        btnScan.innerHTML = originalText;
-        input.value = "";
-    });
+                const lines = text.split(/\r?\n/);
+                let aggiuntiCount = 0;
+                let aggiornatiCount = 0;
+                
+                lines.forEach(line => {
+                    let cleanName = line.replace(/[\d+.,\s€]+$/, '').trim();
+                    cleanName = cleanName.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
+
+                    if (cleanName.length > 2 && isNaN(cleanName)) {
+                        const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
+                        if (existingItem) {
+                            existingItem.quantity += 1;
+                            aggiornatiCount++;
+                        } else {
+                            items.push({ 
+                                id: Date.now() + Math.random(), 
+                                name: cleanName, 
+                                isPromo: false, 
+                                completed: false, 
+                                quantity: 1 
+                            });
+                            aggiuntiCount++;
+                        }
+                    }
+                });
+
+                saveItems();
+                renderItems();
+                
+                const msgText = `Scansione: +${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
+                const msgVocal = `Scansione completata. Ho estratto i prodotti.`;
+                notifyUser(msgText, msgVocal, 'info');
+            } else {
+                notifyUser("❌ Errore di lettura", "Il server ha restituito un formato non valido.", "danger");
+            }
+        })
+        .catch(err => {
+            console.error("Errore irreversibile di rete:", err);
+            notifyUser("❌ Errore di invio", "Impossibile trasmettere i dati. Cambia foto o riprova.", "danger");
+        })
+        .finally(() => {
+            btnScan.disabled = false;
+            btnScan.style.opacity = "1";
+            btnScan.innerHTML = originalText;
+            input.value = "";
+        });
+    };
+    
+    // Legge la foto e genera l'URL Base64 locale prima dell'invio internet
+    reader.readAsDataURL(file);
 }
 function addItemManual(e) {
     if (e && e.preventDefault) e.preventDefault();
@@ -259,3 +265,4 @@ function startVoiceRecognition() {
     recognition.onerror = () => { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; };
     recognition.start();
 }
+
