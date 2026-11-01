@@ -63,6 +63,70 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
+// Funzione OCR per scansionare scontrini o fogli scritti a mano
+function scanImage(input) {
+    if (!input.files || !input.files[0]) return;
+    unlockAudio();
+    
+    const file = input.files[0];
+    const btnScan = document.getElementById('btn-scan');
+    const originalText = btnScan.innerHTML;
+    
+    btnScan.disabled = true;
+    btnScan.style.opacity = "0.6";
+    btnScan.innerText = "⏳ Analisi...";
+    
+    notifyUser("🔍 Elaborazione immagine in corso...", "Sto leggendo l'immagine, attendi un momento.");
+
+    // Avvio di Tesseract OCR impostato sulla lingua italiana
+    Tesseract.recognize(file, 'ita', {
+        logger: m => console.log(m)
+    }).then(({ data: { text } }) => {
+        if (!text || text.trim() === "") {
+            notifyUser("❌ Nessun testo trovato", "Non sono riuscito a leggere nessun prodotto dall'immagine.", "danger");
+            return;
+        }
+
+        // Divide il testo per righe e pulisce i caratteri inutili
+        const lines = text.split('\n');
+        let aggiuntiCount = 0;
+        let aggiornatiCount = 0;
+
+        lines.forEach(line => {
+            const cleanName = line.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+            // Ignora righe vuote o codici numerici troppo corti/lunghi tipici dei prezzi
+            if (cleanName.length > 2 && isNaN(cleanName)) {
+                const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
+                
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                    aggiornatiCount++;
+                } else {
+                    items.push({ id: Date.now() + Math.random(), name: cleanName, isPromo: false, completed: false, quantity: 1 });
+                    aggiuntiCount++;
+                }
+            }
+        });
+
+        saveItems();
+        renderItems();
+        
+        // Resoconto vocale e di testo finale
+        const resText = `Scansione completata: ${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
+        const resVocal = `Scansione completata. Ho aggiunto ${aggiuntiCount} nuovi prodotti e aggiornato la quantità per altri ${aggiornatiCount}.`;
+        notifyUser(resText, resVocal, 'info');
+
+    }).catch(err => {
+        console.error(err);
+        notifyUser("❌ Errore durante la scansione", "Si è verificato un errore durante la lettura dell'immagine.", "danger");
+    }).finally(() => {
+        btnScan.disabled = false;
+        btnScan.style.opacity = "1";
+        btnScan.innerHTML = originalText;
+        input.value = ""; // Svuota l'input file per consentire nuove scansioni dello stesso file
+    });
+}
+
 function addItemManual(e) {
     if (e && e.preventDefault) e.preventDefault();
     unlockAudio();
