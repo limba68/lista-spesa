@@ -13,7 +13,7 @@
         .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid var(--border); border-radius: 8px; text-align: center; font-size: 16px; }
         #app-screen { display: none; }
         .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn-logout { padding: 8px 14px; font-size: 0.9rem; background: #7f8c8d; border-radius: 6px; }
+        .btn-logout { padding: 8px 14px; font-size: 0.9rem; background: #7f8c8d; border-radius: 6px; border: none; cursor: pointer; color: white; }
         .flyers-container { display: flex; gap: 10px; margin-bottom: 16px; }
         .flyer-card { flex: 1; background: var(--white); padding: 12px; border-radius: 8px; text-align: center; text-decoration: none; color: var(--dark); font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border); }
         .flyer-card.conad { border-left: 5px solid #ffcc00; } .flyer-card.iperpan { border-left: 5px solid #b91c1c; }
@@ -36,12 +36,19 @@
         .promo-badge { background: var(--promo-color); color: #000; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
         .item-text { font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
         .completed { opacity: 0.6; } .completed .item-text { text-decoration: line-through; color: #95a5a6; }
-        .btn-delete { background: none; color: #e74c3c; font-size: 1.2rem; padding: 4px; margin-left: 8px; }
+        .btn-delete { background: none; color: #e74c3c; font-size: 1.2rem; padding: 4px; margin-left: 8px; border: none; cursor: pointer; }
+        
+        #toast-container { position: fixed; bottom: 20px; right: 20px; left: 20px; max-width: 360px; margin: 0 auto; z-index: 9999; pointer-events: none; }
+        .toast { background: #333; color: #fff; padding: 12px 16px; border-radius: 8px; margin-top: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.95rem; display: flex; align-items: center; gap: 8px; animation: slideUp 0.3s ease-out; }
+        .toast.toast-info { border-left: 4px solid var(--print-btn); background: #2c3e50; }
+        .toast.toast-danger { border-left: 4px solid var(--danger); background: #7c2d12; }
+        
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         @media (max-width: 580px) { ul { grid-template-columns: 1fr; gap: 8px; } }
         @media print {
             body { background: white; color: #000; padding: 0; }
-            #login-screen, .controls, .input-container, .btn-delete, .btn-clear-all, .btn-logout, .flyers-container, .promo-toggle-container { display: none !important; }
+            #login-screen, .controls, .input-container, .btn-delete, .btn-clear-all, .btn-logout, .flyers-container, .promo-toggle-container, #toast-container { display: none !important; }
             #app-screen { display: block !important; }
             ul { grid-template-columns: repeat(2, 1fr) !important; gap: 15px !important; display: grid !important; }
             li { box-shadow: none; border-bottom: 1px solid #cbd5e1; border-radius: 0; padding: 8px 0; }
@@ -49,6 +56,8 @@
     </style>
 </head>
 <body>
+    <div id="toast-container"></div>
+
     <div id="login-screen">
         <div class="login-box">
             <h2 id="login-title">🔒 Area Riservata</h2>
@@ -82,71 +91,164 @@
         <ul id="shopping-list"></ul>
         <button class="btn-clear-all" onclick="clearAllItems()">🗑️ Svuota Intera Lista</button>
     </div>
-    <script>
-        let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
-        let systemPassword = localStorage.getItem('secure_app_password');
-        window.addEventListener('DOMContentLoaded', () => {
-            if (!systemPassword) {
-                document.getElementById('login-title').innerText = '🆕 Imposta Password';
-                document.getElementById('login-desc').innerText = 'Scegli un codice segreto di sblocco per questa applicazione.';
-            }
-        });
-        function checkPassword(e) {
-            e.preventDefault();
-            const input = document.getElementById('password-input').value;
-            if (!systemPassword) {
-                if (input.trim().length < 4) { alert("Usa almeno 4 caratteri."); return; }
-                localStorage.setItem('secure_app_password', input); systemPassword = input; unlockApp();
-            } else {
-                if (input === systemPassword) { unlockApp(); } else { alert("Password errata!"); document.getElementById('password-input').value = ''; }
-            }
-        }
-        function unlockApp() { document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; renderItems(); }
-        function logout() { document.getElementById('password-input').value = ''; document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
-        function saveItems() { localStorage.setItem('secure_shopping_items', JSON.stringify(items)); }
-        function addItemManual(e) {
-            e.preventDefault();
-            const input = document.getElementById('item-input');
-            const isPromo = document.getElementById('promo-checkbox').checked;
-            if (input.value.trim()) { processAndAddItem(input.value.trim(), isPromo); input.value = ''; document.getElementById('promo-checkbox').checked = false; }
-        }
-        function processAndAddItem(text, isPromo = false) {
-            let tl = text.toLowerCase();
-            if (tl.includes('offerta') || tl.includes('volantino') || tl.includes('sconto')) { isPromo = true; text = text.replace(/offerta|volantino|sconto/gi, '').trim(); }
-            const words = text.split(' '); let qty = 1; let name = text;
-            const lastW = parseInt(words[words.length - 1]);
-            if (!isNaN(lastW) && lastW > 0) { qty = lastW; words.pop(); name = words.join(' '); }
-            else { const firstW = parseInt(words); if (!isNaN(firstW) && firstW > 0) { qty = firstW; words.shift(); name = words.join(' '); } }
-            name = name.charAt(0).toUpperCase() + name.slice(1);
-            const exist = items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.promo === isPromo);
-            if (exist) { exist.qty += qty; } else { items.push({ id: Date.now(), name, qty, checked: false, promo: isPromo }); }
-            saveItems(); renderItems();
-        }
-        function toggleItem(id) { const item = items.find(i => i.id === id); if (item) { item.checked = !item.checked; saveItems(); renderItems(); } }
-        function changeQuantity(id, e) {
-            e.stopPropagation(); const item = items.find(i => i.id === id);
-            if (item) { let n = parseInt(prompt(`Modifica quantità per ${item.name}:`, item.qty)); if (!isNaN(n) && n > 0) { item.qty = n; saveItems(); renderItems(); } }
-        }
-        function deleteItem(id, e) { e.stopPropagation(); items = items.filter(i => i.id !== id); saveItems(); renderItems(); }
-        function clearAllItems() { if (confirm("Vuoi cancellare tutto?")) { items = []; saveItems(); renderItems(); } }
-        function startVoiceRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) { alert("Vocale non supportato su questo browser. Usa Safari."); return; }
-            const rec = new SpeechRecognition(); rec.lang = 'it-IT';
-            const btn = document.getElementById('btn-vocal'); btn.classList.add('listening'); btn.innerText = '🛑 Ascolto...';
-            rec.start();
-            rec.onresult = function(event) { const res = event.results[event.results.length - 1].transcript; if (res.trim()) { processAndAddItem(res.trim()); } };
-            rec.onspeechend = function() { rec.stop(); resetB(); }; rec.onerror = function() { resetB(); };
-            function resetB() { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; }
-        }
-        function renderItems() {
-            const list = document.getElementById('shopping-list'); list.innerHTML = ''; items.sort((a, b) => a.checked - b.checked);
-            items.forEach(item => {
-                const li = document.createElement('li'); li.className = (item.checked ? 'completed ' : '') + (item.promo ? 'is-promo-item' : '');
-                li.innerHTML = `<div class="item-content" onclick="toggleItem(${item.id})"><input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})"><span class="item-text">${item.name}</span>${item.promo ? '<span class="promo-badge">% PROMO</span>' : ''}</div><div style="display:flex;align-items:center;"><button type="button" class="quantity-badge" onclick="changeQuantity(${item.id}, event)">x${item.qty}</button><button type="button" class="btn-delete" onclick="deleteItem(${item.id}, event)">🗑️</button></div>`;
-                list.appendChild(li);
-            });
-        }
-    </script>
+
+    <script src="app.js"></script>
 </body>
 </html>
+let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
+let systemPassword = localStorage.getItem('secure_app_password');
+
+window.addEventListener('DOMContentLoaded', () => {
+    if (!systemPassword) {
+        document.getElementById('login-title').innerText = '🆕 Imposta Password';
+        document.getElementById('login-desc').innerText = 'Scegli un codice segreto di sblocco per questa applicazione.';
+    }
+});
+
+function checkPassword(e) {
+    e.preventDefault();
+    const input = document.getElementById('password-input').value;
+    if (!systemPassword) {
+        if (input.trim().length < 4) { alert("Usa almeno 4 caratteri."); return; }
+        localStorage.setItem('secure_app_password', input); systemPassword = input; unlockApp();
+    } else {
+        if (input === systemPassword) { unlockApp(); } else { alert("Password errata!"); document.getElementById('password-input').value = ''; }
+    }
+}
+
+function unlockApp() { document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; renderItems(); }
+function logout() { document.getElementById('password-input').value = ''; document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
+function saveItems() { localStorage.setItem('secure_shopping_items', JSON.stringify(items)); }
+
+// Funzione combinata per avviso Testuale (Toast) e Vocale (Sintesi Vocale)
+function notifyUser(textMessage, vocalMessage, type = 'info') {
+    // 1. Avviso Testuale
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerText = textMessage;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 3000);
+
+    // 2. Avviso Vocale
+    if ('speechSynthesis' in window) {
+        // Interrompe riproduzioni precedenti per evitare sovrapposizioni
+        window.speechSynthesis.cancel(); 
+        const utterance = new SpeechSynthesisUtterance(vocalMessage);
+        utterance.lang = 'it-IT';
+        utterance.rate = 1.1; // Velocità di lettura naturale
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Aggiunta articoli con gestione duplicati, avviso di testo e voce
+function addItemManual(e) {
+    e.preventDefault();
+    const inputEl = document.getElementById('item-input');
+    const promoCheckbox = document.getElementById('promo-checkbox');
+    const name = inputEl.value.trim();
+    const isPromo = promoCheckbox.checked;
+
+    if (!name) return;
+
+    // Controllo duplicati basato su nome e tipo (se in promo o meno)
+    const existingItem = items.find(item => item.name.toLowerCase() === name.toLowerCase() && item.isPromo === isPromo);
+
+    if (existingItem) {
+        existingItem.quantity += 1;
+        const msgText = `➕ Quantità aggiornata: ${existingItem.name} (${existingItem.quantity})`;
+        const msgVocal = `Quantità aggiornata per ${existingItem.name}. Ora sono ${existingItem.quantity}`;
+        notifyUser(msgText, msgVocal, 'info');
+    } else {
+        const newItem = {
+            id: Date.now(),
+            name: name,
+            isPromo: isPromo,
+            completed: false,
+            quantity: 1
+        };
+        items.push(newItem);
+        notifyUser(`🛒 Aggiunto: ${name}`, `Aggiunto ${name}`);
+    }
+
+    inputEl.value = '';
+    promoCheckbox.checked = false;
+    saveItems();
+    renderItems();
+}
+
+function renderItems() {
+    const listEl = document.getElementById('shopping-list');
+    listEl.innerHTML = '';
+
+    items.forEach(item => {
+        const li = document.createElement('li');
+        if (item.completed) li.classList.add('completed');
+        if (item.isPromo) li.classList.add('is-promo-item');
+
+        li.innerHTML = `
+            <div class="item-content" onclick="toggleComplete(${item.id})">
+                <input type="checkbox" ${item.completed ? 'checked' : ''}>
+                <span class="quantity-badge">x${item.quantity}</span>
+                <span class="item-text">${item.name}</span>
+                ${item.isPromo ? '<span class="promo-badge">% PROMO</span>' : ''}
+            </div>
+            <button class="btn-delete" onclick="event.stopPropagation(); deleteItem(${item.id})">❌</button>
+        `;
+        listEl.appendChild(li);
+    });
+}
+
+function toggleComplete(id) {
+    items = items.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
+    saveItems();
+    renderItems();
+}
+
+// Eliminazione articolo con avviso di testo e voce
+function deleteItem(id) {
+    const itemToDelete = items.find(item => item.id === id);
+    if (itemToDelete) {
+        const msgText = `🗑️ Rimosso: ${itemToDelete.name}`;
+        const msgVocal = `Articolo ${itemToDelete.name} rimosso dalla lista`;
+        notifyUser(msgText, msgVocal, 'danger');
+        
+        items = items.filter(item => item.id !== id);
+        saveItems();
+        renderItems();
+    }
+}
+
+// Svuotamento totale lista
+function clearAllItems() {
+    if (items.length === 0) return;
+    if (confirm("Sei sicuro di voler svuotare l'intera lista della spesa?")) {
+        items = [];
+        notifyUser("🚨 Intera lista svuotata!", "Lista della spesa svuotata completamente", "danger");
+        saveItems();
+        renderItems();
+    }
+}
+
+function startVoiceRecognition() {
+    const btn = document.getElementById('btn-vocal');
+    if (!('webkitSpeechRecognition' in window) && !('speechRecognition' in window)) {
+        alert("Il riconoscimento vocale non è supportato su questo browser.");
+        return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'it-IT';
+    
+    recognition.onstart = () => { btn.classList.add('listening'); btn.innerText = '⏳ Ascolto...'; };
+    recognition.onend = () => { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; };
+    
+    recognition.onresult = (event) => {
+        const text = event.results.transcript;
+        if(text.trim()) {
+            document.getElementById('item-input').value = text;
+            addItemManual({ preventDefault: () => {} });
+        }
+    };
+    recognition.start();
+}
