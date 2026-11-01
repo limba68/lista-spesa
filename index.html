@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lista della Spesa Protetta & Promo</title>
-    <!-- Caricamento della libreria OCR Tesseract.js per la scansione immagini -->
+    <!-- Libreria OCR per la scansione delle immagini da fotocamera -->
     <script src="https://jsdelivr.net"></script>
     <style>
         :root { --primary: #4CAF50; --accent: #ff5722; --print-btn: #2196F3; --danger: #e74c3c; --dark: #2c3e50; --light: #f8f9fa; --white: #ffffff; --border: #cbd5e1; --promo-color: #eab308; --scan-btn: #9c27b0; }
@@ -28,7 +28,7 @@
         #btn-vocal { flex: 1; background: var(--accent); }
         #btn-vocal.listening { background: #e64a19; animation: pulse 1.5s infinite; }
         #btn-print { flex: 1; background: var(--print-btn); }
-        #btn-scan { flex: 1; background: var(--scan-btn); position: relative; }
+        #btn-scan { flex: 1; background: var(--scan-btn); }
         .btn-clear-all { width: 100%; background: var(--danger); margin-top: 20px; }
         ul { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; list-style: none; }
         li { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--white); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
@@ -89,7 +89,6 @@
         <div class="controls">
             <button id="btn-vocal" type="button" onclick="startVoiceRecognition()">🎙️ Parla</button>
             
-            <!-- Pulsante di Scansione Fotocamera nascosto sotto forma di input file per massima compatibilità mobile -->
             <button id="btn-scan" type="button" onclick="document.getElementById('file-capture').click()">
                 📷 Scansiona
                 <input type="file" id="file-capture" accept="image/*" capture="environment" style="display:none" onchange="scanImage(this)">
