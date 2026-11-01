@@ -63,12 +63,52 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Funzione OCR Cloud corretta: converte localmente in stringa di testo Base64 per evitare i blocchi mobili
+function parseQuantityAndName(rawInput) {
+    let text = rawInput.trim();
+    text = text.replace(/^(pacchi di|pacco di|bottiglie di|bottiglia di|kg di|chili di|pezzi di|pezzo di|x)\s+/i, '');
+    const match = text.match(/^(\d+)\s+(.+)$/);
+    
+    if (match) {
+        let quantity = parseInt(match[1], 10);
+        let name = match[2].trim();
+        name = name.replace(/^(di|del|dei|delle)\s+/i, '');
+        return { quantity, name };
+    }
+    return { quantity: 1, name: text };
+}
+
+// Consente la modifica manuale della quantità direttamente dal selettore numerico della lista
+function updateQuantityManual(id, newQuantity) {
+    unlockAudio();
+    const qty = parseInt(newQuantity, 10);
+    
+    // Se l'utente imposta la quantità a 0 o meno, l'articolo viene eliminato automaticamente
+    if (isNaN(qty) || qty <= 0) {
+        deleteItem(id);
+        return;
+    }
+
+    items = items.map(item => {
+        if (item.id === id) {
+            if (item.quantity !== qty) {
+                const msgText = `✏️ Quantità modificata: ${item.name} (${qty})`;
+                const msgVocal = `Quantità aggiornata per ${item.name}. Ora sono ${qty}`;
+                notifyUser(msgText, msgVocal, 'info');
+            }
+            return { ...item, quantity: qty };
+        }
+        return item;
+    });
+
+    saveItems();
+    renderItems();
+}
+
 function scanImage(input) {
     if (!input.files || input.files.length === 0) return;
     unlockAudio();
     
-    const file = input.files[0]; // Estrae l'oggetto file binario esatto
+    const file = input.files[0];
     const btnScan = document.getElementById('btn-scan');
     const originalText = btnScan.innerHTML;
     
@@ -80,21 +120,21 @@ function scanImage(input) {
 
     const reader = new FileReader();
     reader.onload = function(e) {
-        const base64String = e.target.result; // Contiene l'immagine tradotta in stringa di testo sicura
+        const base64String = e.target.result;
 
         const formData = new FormData();
-        formData.append("base64Image", base64String); // Invia come stringa di testo nativa (aggira i blocchi CORS)
+        formData.append("base64Image", base64String);
         formData.append("language", "ita");
         formData.append("isOverlayRequired", "false");
         formData.append("scale", "true");
         formData.append("apikey", "helloworld"); 
 
-        fetch("https://api.ocr.space/parse/image", {
+        fetch("https://ocr.space", {
             method: "POST",
             body: formData
         })
         .then(response => {
-            if (!response.ok) throw new Error("Server offline o rifiuto della richiesta");
+            if (!response.ok) throw new Error("Server offline");
             return response.json();
         })
         .then(result => {
@@ -110,23 +150,27 @@ function scanImage(input) {
                 let aggiornatiCount = 0;
                 
                 lines.forEach(line => {
-                    let cleanName = line.replace(/[\d+.,\s€]+$/, '').trim();
-                    cleanName = cleanName.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
+                    let cleanLine = line.replace(/[\s€]+$/, '').trim();
+                    cleanLine = cleanLine.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
 
-                    if (cleanName.length > 2 && isNaN(cleanName)) {
-                        const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
-                        if (existingItem) {
-                            existingItem.quantity += 1;
-                            aggiornatiCount++;
-                        } else {
-                            items.push({ 
-                                id: Date.now() + Math.random(), 
-                                name: cleanName, 
-                                isPromo: false, 
-                                completed: false, 
-                                quantity: 1 
-                            });
-                            aggiuntiCount++;
+                    if (cleanLine.length > 2) {
+                        const parsed = parseQuantityAndName(cleanLine);
+                        
+                        if (parsed.name.length > 2 && isNaN(parsed.name)) {
+                            const existingItem = items.find(item => item.name.toLowerCase() === parsed.name.toLowerCase() && !item.isPromo);
+                            if (existingItem) {
+                                existingItem.quantity += parsed.quantity;
+                                aggiornatiCount++;
+                            } else {
+                                items.push({ 
+                                    id: Date.now() + Math.random(), 
+                                    name: parsed.name, 
+                                    isPromo: false, 
+                                    completed: false, 
+                                    quantity: parsed.quantity 
+                                });
+                                aggiuntiCount++;
+                            }
                         }
                     }
                 });
@@ -135,15 +179,15 @@ function scanImage(input) {
                 renderItems();
                 
                 const msgText = `Scansione: +${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
-                const msgVocal = `Scansione completata. Ho estratto i prodotti.`;
+                const msgVocal = `Scansione completata.`;
                 notifyUser(msgText, msgVocal, 'info');
             } else {
-                notifyUser("❌ Errore di lettura", "Il server ha restituito un formato non valido.", "danger");
+                notifyUser("❌ Errore di lettura", "Il server ha risposto in modo non valido.", "danger");
             }
         })
         .catch(err => {
-            console.error("Errore irreversibile di rete:", err);
-            notifyUser("❌ Errore di invio", "Impossibile trasmettere i dati. Cambia foto o riprova.", "danger");
+            console.error(err);
+            notifyUser("❌ Errore di invio", "Impossibile trasmettere i dati. Riprova.", "danger");
         })
         .finally(() => {
             btnScan.disabled = false;
@@ -152,8 +196,6 @@ function scanImage(input) {
             input.value = "";
         });
     };
-    
-    // Legge la foto e genera l'URL Base64 locale prima dell'invio internet
     reader.readAsDataURL(file);
 }
 function addItemManual(e) {
@@ -161,20 +203,27 @@ function addItemManual(e) {
     unlockAudio();
     const inputEl = document.getElementById('item-input');
     const promoCheckbox = document.getElementById('promo-checkbox');
-    const name = inputEl.value.trim();
+    const rawInput = inputEl.value.trim();
     const isPromo = promoCheckbox.checked;
 
-    if (!name) return;
+    if (!rawInput) return;
 
-    const existingItem = items.find(item => item.name.toLowerCase() === name.toLowerCase() && item.isPromo === isPromo);
+    const parsed = parseQuantityAndName(rawInput);
+    const existingItem = items.find(item => item.name.toLowerCase() === parsed.name.toLowerCase() && item.isPromo === isPromo);
 
     if (existingItem) {
-        existingItem.quantity += 1;
+        existingItem.quantity += parsed.quantity;
         notifyUser(`➕ Quantità aggiornata: ${existingItem.name} (${existingItem.quantity})`, `Quantità aggiornata per ${existingItem.name}. Ora sono ${existingItem.quantity}`, 'info');
     } else {
-        const newItem = { id: Date.now(), name: name, isPromo: isPromo, completed: false, quantity: 1 };
+        const newItem = { 
+            id: Date.now(), 
+            name: parsed.name, 
+            isPromo: isPromo, 
+            completed: false, 
+            quantity: parsed.quantity 
+        };
         items.push(newItem);
-        notifyUser(`🛒 Aggiunto: ${name}`, `Aggiunto ${name}`);
+        notifyUser(`🛒 Aggiunto: ${parsed.name} (x${parsed.quantity})`, `Aggiunto ${parsed.name}, quantità ${parsed.quantity}`);
     }
 
     inputEl.value = '';
@@ -193,11 +242,15 @@ function renderItems() {
         if (item.completed) li.classList.add('completed');
         if (item.isPromo) li.classList.add('is-promo-item');
 
+        // Trasformato il badge statico della quantità in un input input[type="number"] modificabile a mano
         li.innerHTML = `
             <div class="item-content" onclick="toggleComplete(${item.id})">
-                <input type="checkbox" ${item.completed ? 'checked' : ''}>
-                <span class="quantity-badge">x${item.quantity}</span>
-                <span class="item-text">${item.name}</span>
+                <input type="checkbox" ${item.completed ? 'checked' : ''} style="margin-right: 4px;">
+                <input type="number" value="${item.quantity}" min="1" max="99" 
+                       onclick="event.stopPropagation()" 
+                       onchange="updateQuantityManual(${item.id}, this.value)" 
+                       style="width: 50px; padding: 4px 2px; text-align: center; font-weight: bold; border: 1px solid var(--border); border-radius: 4px; margin-right: 8px; font-size: 1rem; color: var(--dark); background: #edf2f7;">
+                <span class="item-text" style="flex: 1;">${item.name}</span>
                 ${item.isPromo ? '<span class="promo-badge">% PROMO</span>' : ''}
             </div>
             <button class="btn-delete" onclick="event.stopPropagation(); deleteItem(${item.id})">❌</button>
@@ -265,4 +318,3 @@ function startVoiceRecognition() {
     recognition.onerror = () => { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; };
     recognition.start();
 }
-
