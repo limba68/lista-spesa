@@ -52,7 +52,7 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     toast.className = `toast toast-${type}`;
     toast.innerText = textMessage;
     container.appendChild(toast);
-    setTimeout(() => { toast.remove(); }, 3000);
+    setTimeout(() => { toast.remove(); }, 3500);
 
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel(); 
@@ -63,9 +63,8 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Funzione OCR per scansionare scontrini o fogli scritti a mano
 function scanImage(input) {
-    if (!input.files || !input.files[0]) return;
+    if (!input.files || input.files.length === 0) return;
     unlockAudio();
     
     const file = input.files[0];
@@ -76,55 +75,69 @@ function scanImage(input) {
     btnScan.style.opacity = "0.6";
     btnScan.innerText = "⏳ Analisi...";
     
-    notifyUser("🔍 Elaborazione immagine in corso...", "Sto leggendo l'immagine, attendi un momento.");
+    notifyUser("🔍 Elaborazione immagine...", "Sto leggendo l'immagine, attendi un momento.");
 
-    // Avvio di Tesseract OCR impostato sulla lingua italiana
-    Tesseract.recognize(file, 'ita', {
-        logger: m => console.log(m)
-    }).then(({ data: { text } }) => {
-        if (!text || text.trim() === "") {
-            notifyUser("❌ Nessun testo trovato", "Non sono riuscito a leggere nessun prodotto dall'immagine.", "danger");
-            return;
-        }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64Image = e.target.result;
 
-        // Divide il testo per righe e pulisce i caratteri inutili
-        const lines = text.split('\n');
-        let aggiuntiCount = 0;
-        let aggiornatiCount = 0;
-
-        lines.forEach(line => {
-            const cleanName = line.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-            // Ignora righe vuote o codici numerici troppo corti/lunghi tipici dei prezzi
-            if (cleanName.length > 2 && isNaN(cleanName)) {
-                const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
-                
-                if (existingItem) {
-                    existingItem.quantity += 1;
-                    aggiornatiCount++;
-                } else {
-                    items.push({ id: Date.now() + Math.random(), name: cleanName, isPromo: false, completed: false, quantity: 1 });
-                    aggiuntiCount++;
-                }
+        Tesseract.recognize(
+            base64Image,
+            'ita',
+            { workerBlobURL: false }
+        ).then(({ data: { text } }) => {
+            if (!text || text.trim() === "") {
+                notifyUser("❌ Nessun testo trovato", "Non ho trovato scritte leggibili nella foto.", "danger");
+                return;
             }
+
+            const lines = text.split('\n');
+            let aggiuntiCount = 0;
+            let aggiornatiCount = 0;
+
+            lines.forEach(line => {
+                let cleanName = line.replace(/[\\|#*_\-\[\]\{\}]/g, '').trim();
+                cleanName = cleanName.replace(/\s\d+[\.,]\d{2}$/, '').trim();
+                cleanName = cleanName.replace(/^\d+\s+/, '').trim();
+
+                if (cleanName.length > 2 && isNaN(cleanName)) {
+                    const existingItem = items.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && !item.isPromo);
+                    
+                    if (existingItem) {
+                        existingItem.quantity += 1;
+                        aggiornatiCount++;
+                    } else {
+                        items.push({ 
+                            id: Date.now() + Math.random(), 
+                            name: cleanName, 
+                            isPromo: false, 
+                            completed: false, 
+                            quantity: 1 
+                        });
+                        aggiuntiCount++;
+                    }
+                }
+            });
+
+            saveItems();
+            renderItems();
+            
+            const resText = `Scansione: +${aggiuntiCount} articoli, aggiornati ${aggiornatiCount}.`;
+            const resVocal = `Scansione completata. Ho aggiunto ${aggiuntiCount} nuovi prodotti e aggiornato la quantità per altri ${aggiornatiCount}.`;
+            notifyUser(resText, resVocal, 'info');
+
+        }).catch(err => {
+            console.error(err);
+            notifyUser("❌ Errore di lettura", "Impossibile elaborare questa immagine.", "danger");
+        }).finally(() => {
+            btnScan.disabled = false;
+            btnScan.style.opacity = "1";
+            btnScan.innerHTML = originalText;
+            input.value = ""; 
         });
-
-        saveItems();
-        renderItems();
-        
-        // Resoconto vocale e di testo finale
-        const resText = `Scansione completata: ${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
-        const resVocal = `Scansione completata. Ho aggiunto ${aggiuntiCount} nuovi prodotti e aggiornato la quantità per altri ${aggiornatiCount}.`;
-        notifyUser(resText, resVocal, 'info');
-
-    }).catch(err => {
-        console.error(err);
-        notifyUser("❌ Errore durante la scansione", "Si è verificato un errore durante la lettura dell'immagine.", "danger");
-    }).finally(() => {
-        btnScan.disabled = false;
-        btnScan.style.opacity = "1";
-        btnScan.innerHTML = originalText;
-        input.value = ""; // Svuota l'input file per consentire nuove scansioni dello stesso file
-    });
+    };
+    
+    reader.readAsDataURL(file);
 }
 
 function addItemManual(e) {
