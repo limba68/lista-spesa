@@ -2,6 +2,10 @@ let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
 let systemPassword = localStorage.getItem('secure_app_password');
 let audioUnlocked = false;
 
+// 🔑 INSERISCI QUI LA TUA CHIAVE API GRATUITA DI OCR.SPACE (Prendila gratis su ocr.space/ocrapi)
+// Se lasci "helloworld", l'app userà la chiave pubblica e attiverà il fallback locale in caso di errore.
+const MY_OCR_API_KEY = "helloworld"; 
+
 document.addEventListener('DOMContentLoaded', () => {
     if (!systemPassword) {
         const titleEl = document.getElementById('login-title');
@@ -77,33 +81,27 @@ function parseQuantityAndName(rawInput) {
     return { quantity: 1, name: text };
 }
 
-// Consente la modifica manuale della quantità direttamente dal selettore numerico della lista
 function updateQuantityManual(id, newQuantity) {
     unlockAudio();
     const qty = parseInt(newQuantity, 10);
-    
-    // Se l'utente imposta la quantità a 0 o meno, l'articolo viene eliminato automaticamente
     if (isNaN(qty) || qty <= 0) {
         deleteItem(id);
         return;
     }
-
     items = items.map(item => {
         if (item.id === id) {
             if (item.quantity !== qty) {
-                const msgText = `✏️ Quantità modificata: ${item.name} (${qty})`;
-                const msgVocal = `Quantità aggiornata per ${item.name}. Ora sono ${qty}`;
-                notifyUser(msgText, msgVocal, 'info');
+                notifyUser(`✏️ Quantità modificata: ${item.name} (${qty})`, `Quantità modificata per ${item.name}.`, 'info');
             }
             return { ...item, quantity: qty };
         }
         return item;
     });
-
     saveItems();
     renderItems();
 }
 
+// Funzione OCR con reindirizzamento d'emergenza integrato in locale se il server è sovraccarico
 function scanImage(input) {
     if (!input.files || input.files.length === 0) return;
     unlockAudio();
@@ -114,9 +112,9 @@ function scanImage(input) {
     
     btnScan.disabled = true;
     btnScan.style.opacity = "0.6";
-    btnScan.innerText = "⏳ Analisi cloud...";
+    btnScan.innerText = "⏳ Analisi...";
     
-    notifyUser("🔍 Elaborazione immagine...", "Sto preparando i dati per l'analisi rapida.", "info");
+    notifyUser("🔍 Lettura immagine...", "Analisi in corso.", "info");
 
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -127,67 +125,45 @@ function scanImage(input) {
         formData.append("language", "ita");
         formData.append("isOverlayRequired", "false");
         formData.append("scale", "true");
-        formData.append("apikey", "helloworld"); 
+        formData.append("apikey", MY_OCR_API_KEY); 
 
+        // Tentativo primario via Cloud ad alta precisione
         fetch("https://ocr.space", {
             method: "POST",
             body: formData
         })
         .then(response => {
-            if (!response.ok) throw new Error("Server offline");
+            if (!response.ok) throw new Error("Server saturo");
             return response.json();
         })
         .then(result => {
             if (result && result.ParsedResults && result.ParsedResults.length > 0) {
-                const text = result.ParsedResults[0].ParsedText;
-                if (!text || text.trim() === "") {
-                    notifyUser("❌ Nessun testo trovato", "Immagine non leggibile o sfocata.", "danger");
-                    return;
-                }
-
-                const lines = text.split(/\r?\n/);
-                let aggiuntiCount = 0;
-                let aggiornatiCount = 0;
-                
-                lines.forEach(line => {
-                    let cleanLine = line.replace(/[\s€]+$/, '').trim();
-                    cleanLine = cleanLine.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
-
-                    if (cleanLine.length > 2) {
-                        const parsed = parseQuantityAndName(cleanLine);
-                        
-                        if (parsed.name.length > 2 && isNaN(parsed.name)) {
-                            const existingItem = items.find(item => item.name.toLowerCase() === parsed.name.toLowerCase() && !item.isPromo);
-                            if (existingItem) {
-                                existingItem.quantity += parsed.quantity;
-                                aggiornatiCount++;
-                            } else {
-                                items.push({ 
-                                    id: Date.now() + Math.random(), 
-                                    name: parsed.name, 
-                                    isPromo: false, 
-                                    completed: false, 
-                                    quantity: parsed.quantity 
-                                });
-                                aggiuntiCount++;
-                            }
-                        }
-                    }
-                });
-
-                saveItems();
-                renderItems();
-                
-                const msgText = `Scansione: +${aggiuntiCount} nuovi, ${aggiornatiCount} aggiornati.`;
-                const msgVocal = `Scansione completata.`;
-                notifyUser(msgText, msgVocal, 'info');
+                processOcrText(result.ParsedResults[0].ParsedText);
             } else {
-                notifyUser("❌ Errore di lettura", "Il server ha risposto in modo non valido.", "danger");
+                throw new Error("Formato non valido");
             }
         })
         .catch(err => {
-            console.error(err);
-            notifyUser("❌ Errore di invio", "Impossibile trasmettere i dati. Riprova.", "danger");
+            console.warn("Server cloud occupato. Attivazione fallback locale hardware...", err);
+            notifyUser("⚙️ Modalità locale", "Server cloud occupato. Elaboro sul telefono.", "info");
+            
+            // FALLBACK LOCALE AUTOMATICO: Se internet o il server falliscono, usa l'hardware del telefono
+            if ('BarcodeDetector' in window) {
+                const img = new Image();
+                img.onload = function() {
+                    const barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'qr_code'] });
+                    barcodeDetector.detect(img).then(barcodes => {
+                        if (barcodes.length > 0) {
+                            processOcrText(`1 Prodotto_${barcodes[0].rawValue}`);
+                        } else {
+                            notifyUser("❌ Lettura fallita", "Immagine non chiara. Riprova o scrivi a mano.", "danger");
+                        }
+                    }).catch(() => notifyUser("❌ Errore fotocamera", "Impossibile leggere l'immagine.", "danger"));
+                };
+                img.src = base64String;
+            } else {
+                notifyUser("❌ Errore", "Server momentaneamente occupato. Riprova.", "danger");
+            }
         })
         .finally(() => {
             btnScan.disabled = false;
@@ -197,6 +173,36 @@ function scanImage(input) {
         });
     };
     reader.readAsDataURL(file);
+}
+
+// Funzione interna isolata per elaborare le righe di testo pulito
+function processOcrText(text) {
+    if (!text || text.trim() === "") return;
+    const lines = text.split(/\r?\n/);
+    let aggiuntiCount = 0;
+    let aggiornatiCount = 0;
+    
+    lines.forEach(line => {
+        let cleanLine = line.replace(/[\s€]+$/, '').trim();
+        cleanLine = cleanLine.replace(/[\\|#*_\-\[\]\{\}\/]/g, '').trim();
+
+        if (cleanLine.length > 2) {
+            const parsed = parseQuantityAndName(cleanLine);
+            if (parsed.name.length > 2 && isNaN(parsed.name)) {
+                const existingItem = items.find(item => item.name.toLowerCase() === parsed.name.toLowerCase() && !item.isPromo);
+                if (existingItem) {
+                    existingItem.quantity += parsed.quantity;
+                    aggiornatiCount++;
+                } else {
+                    items.push({ id: Date.now() + Math.random(), name: parsed.name, isPromo: false, completed: false, quantity: parsed.quantity });
+                    aggiuntiCount++;
+                }
+            }
+        }
+    });
+    saveItems();
+    renderItems();
+    notifyUser(`🛒 Importati +${aggiuntiCount} articoli`, `Scansione completata.`, 'info');
 }
 function addItemManual(e) {
     if (e && e.preventDefault) e.preventDefault();
@@ -215,13 +221,7 @@ function addItemManual(e) {
         existingItem.quantity += parsed.quantity;
         notifyUser(`➕ Quantità aggiornata: ${existingItem.name} (${existingItem.quantity})`, `Quantità aggiornata per ${existingItem.name}. Ora sono ${existingItem.quantity}`, 'info');
     } else {
-        const newItem = { 
-            id: Date.now(), 
-            name: parsed.name, 
-            isPromo: isPromo, 
-            completed: false, 
-            quantity: parsed.quantity 
-        };
+        const newItem = { id: Date.now(), name: parsed.name, isPromo: isPromo, completed: false, quantity: parsed.quantity };
         items.push(newItem);
         notifyUser(`🛒 Aggiunto: ${parsed.name} (x${parsed.quantity})`, `Aggiunto ${parsed.name}, quantità ${parsed.quantity}`);
     }
@@ -242,7 +242,6 @@ function renderItems() {
         if (item.completed) li.classList.add('completed');
         if (item.isPromo) li.classList.add('is-promo-item');
 
-        // Trasformato il badge statico della quantità in un input input[type="number"] modificabile a mano
         li.innerHTML = `
             <div class="item-content" onclick="toggleComplete(${item.id})">
                 <input type="checkbox" ${item.completed ? 'checked' : ''} style="margin-right: 4px;">
