@@ -63,22 +63,27 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Estrae prima la quantità numerica e poi il nome dell'articolo
+// Riconosce le diciture "n.", "n°", "numero" estraendo correttamente i pezzi del prodotto
 function parseQuantityAndName(rawInput) {
     let text = rawInput.trim();
-    text = text.replace(/^(pacchi di|pacco di|bottiglie di|bottiglia di|kg di|chili di|pezzi di|pezzo di|x)\s+/i, '');
+    
+    // Pulisce abbreviazioni come "n.", "n°", "numero" o "pezzi" prima o dopo il numero
+    text = text.replace(/^(numero|n\.|n°|pezzi di|pezzo di|pacchi di|pacco di|bottiglie di|bottiglia di|x)\s+/i, '');
+    
+    // Gestisce formati vocali del tipo "n. 3 latte" o "3 latte"
     const match = text.match(/^(\d+)\s+(.+)$/);
     
     if (match) {
         let quantity = parseInt(match[1], 10);
         let name = match[2].trim();
-        name = name.replace(/^(di|del|dei|delle)\s+/i, '');
+        // Rimuove congiunzioni residue (es: "3 di numero pezzi latte" -> "latte")
+        name = name.replace(/^(di numero pezzi|di numero pezzo|numero pezzi|pezzi di|pezzo di|di|del|dei|delle)\s+/i, '');
         return { quantity, name };
     }
+    
     return { quantity: 1, name: text };
 }
 
-// Modifica manuale dal contatore numerico dell'elenco
 function updateQuantityManual(id, newQuantity) {
     unlockAudio();
     const qty = parseInt(newQuantity, 10);
@@ -91,7 +96,7 @@ function updateQuantityManual(id, newQuantity) {
     items = items.map(item => {
         if (item.id === id) {
             if (item.quantity !== qty) {
-                notifyUser(`✏️ Quantità modificata: ${item.name} (${qty})`, `Quantità modificata per ${item.name}. Ora sono ${qty}`, 'info');
+                notifyUser(`✏️ Quantità modificata: ${item.name} (${qty})`, `Quantità aggiornata per ${item.name}. Ora sono ${qty}`, 'info');
             }
             return { ...item, quantity: qty };
         }
