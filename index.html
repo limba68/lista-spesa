@@ -5,538 +5,148 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lista della Spesa Protetta & Promo</title>
     <style>
-        :root {
-            --primary: #4CAF50;
-            --primary-dark: #45a049;
-            --accent: #ff5722;
-            --accent-dark: #e64a19;
-            --print-btn: #2196F3;
-            --danger: #e74c3c;
-            --danger-dark: #c0392b;
-            --dark: #2c3e50;
-            --light: #f8f9fa;
-            --white: #ffffff;
-            --gray: #e2e8f0;
-            --badge-bg: #edf2f7;
-            --badge-color: #4a5568;
-            --border: #cbd5e1;
-            --promo-color: #eab308;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--light);
-            color: var(--dark);
-            padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
-            min-height: 100vh;
-        }
-
-        #login-screen {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 80vh;
-            text-align: center;
-        }
-
-        .login-box {
-            background: var(--white);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            width: 100%;
-            max-width: 360px;
-        }
-
-        .login-box h2 { margin-bottom: 15px; font-size: 1.4rem; }
-        .login-box p { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 15px; }
-
-        .login-box input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            outline: none;
-            text-align: center;
-            background: white;
-            color: var(--dark);
-        }
-
-        .login-box button { width: 100%; background-color: var(--primary); }
-
+        :root { --primary: #4CAF50; --accent: #ff5722; --print-btn: #2196F3; --danger: #e74c3c; --dark: #2c3e50; --light: #f8f9fa; --white: #ffffff; --border: #cbd5e1; --promo-color: #eab308; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--light); color: var(--dark); padding: 20px; max-width: 800px; margin: 0 auto; min-height: 100vh; }
+        #login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; }
+        .login-box { background: var(--white); padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); width: 100%; max-width: 360px; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid var(--border); border-radius: 8px; text-align: center; font-size: 16px; }
         #app-screen { display: none; }
-
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        h1 { font-size: 1.6rem; }
-
-        .btn-logout {
-            padding: 8px 14px;
-            font-size: 0.9rem;
-            background-color: #7f8c8d;
-            border-radius: 6px;
-        }
-
-        .flyers-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .flyer-card {
-            flex: 1;
-            background: var(--white);
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            text-decoration: none;
-            color: var(--dark);
-            font-weight: bold;
-            font-size: 0.9rem;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        .flyer-card.conad { border-left: 5px solid #ffcc00; }
-        .flyer-card.iperpan { border-left: 5px solid #b91c1c; }
-
-        .input-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .input-container input[type="text"] {
-            flex: 1;
-            padding: 14px;
-            font-size: 16px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            outline: none;
-            background: white;
-            color: var(--dark);
-        }
-
-        .input-container button {
-            flex: none;
-            width: auto;
-            padding: 0 20px;
-            background-color: var(--primary);
-        }
-
-        .promo-toggle-container {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 16px;
-            font-size: 0.95rem;
-            cursor: pointer;
-        }
-
-        .controls {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        button {
-            padding: 14px 10px;
-            font-size: 1rem;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            color: var(--white);
-        }
-
-        button:active { transform: scale(0.98); }
-        #btn-vocal { flex: 1; background-color: var(--accent); }
-        #btn-vocal.listening { background-color: var(--accent-dark); animation: pulse 1.5s infinite; }
-        #btn-print { flex: 1; background-color: var(--print-btn); }
-        
-        .btn-clear-all { width: 100%; background-color: var(--danger); margin-top: 20px; }
-        .btn-clear-all:hover { background-color: var(--danger-dark); }
-
-        ul {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            list-style: none;
-        }
-
-        li {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 16px;
-            background: var(--white);
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        
-        li.is-promo-item {
-            border: 1px solid var(--promo-color);
-            background: #fefce8;
-        }
-
-        .item-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex: 1;
-            cursor: pointer;
-            overflow: hidden;
-        }
-
-        li input[type="checkbox"] {
-            transform: scale(1.3);
-            cursor: pointer;
-            accent-color: var(--primary);
-            flex-shrink: 0;
-        }
-
-        .quantity-badge {
-            background-color: var(--badge-bg);
-            color: var(--badge-color);
-            font-weight: bold;
-            font-size: 0.9rem;
-            padding: 6px 10px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-        .quantity-badge:hover { background-color: #cbd5e1; }
-
-        .promo-badge {
-            background-color: var(--promo-color);
-            color: #000;
-            font-size: 0.75rem;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 6px;
-            flex-shrink: 0;
-        }
-
-        li span.item-text {
-            font-size: 1.05rem;
-            word-break: break-word;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
-        .completed { opacity: 0.6; }
-        .completed .item-text { text-decoration: line-through; color: #95a5a6; }
-
-        .btn-delete {
-            background: none;
-            border: none;
-            color: #e74c3c;
-            cursor: pointer;
-            font-size: 1.2rem;
-            padding: 4px;
-            flex-shrink: 0;
-            margin-left: 8px;
-        }
-
-        #toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            background-color: #333;
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 30px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            font-weight: bold;
-            font-size: 0.95rem;
-            z-index: 1000;
-            transition: transform 0.3s;
-            pointer-events: none;
-            text-align: center;
-            max-width: 90%;
-        }
-
-        #toast.show { transform: translateX(-50%) translateY(0); }
-        #toast.update-notify { background-color: #2196F3; }
-        #toast.add-notify { background-color: #4CAF50; }
-
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-logout { padding: 8px 14px; font-size: 0.9rem; background: #7f8c8d; border-radius: 6px; }
+        .flyers-container { display: flex; gap: 10px; margin-bottom: 16px; }
+        .flyer-card { flex: 1; background: var(--white); padding: 12px; border-radius: 8px; text-align: center; text-decoration: none; color: var(--dark); font-weight: bold; font-size: 0.9rem; border: 1px solid var(--border); }
+        .flyer-card.conad { border-left: 5px solid #ffcc00; } .flyer-card.iperpan { border-left: 5px solid #b91c1c; }
+        .input-container { display: flex; gap: 10px; margin-bottom: 12px; }
+        .input-container input { flex: 1; padding: 14px; font-size: 16px; border: 2px solid var(--border); border-radius: 8px; background: white; color: var(--dark); }
+        .promo-toggle-container { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.95rem; cursor: pointer; }
+        .controls { display: flex; gap: 12px; margin-bottom: 20px; }
+        button { padding: 14px 10px; font-size: 1rem; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--white); }
+        .btn-main { background-color: var(--primary); }
+        #btn-vocal { flex: 1; background: var(--accent); }
+        #btn-vocal.listening { background: #e64a19; animation: pulse 1.5s infinite; }
+        #btn-print { flex: 1; background: var(--print-btn); }
+        .btn-clear-all { width: 100%; background: var(--danger); margin-top: 20px; }
+        ul { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; list-style: none; }
+        li { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--white); border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        li.is-promo-item { border: 1px solid var(--promo-color); background: #fefce8; }
+        .item-content { display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer; overflow: hidden; }
+        li input[type="checkbox"] { transform: scale(1.3); accent-color: var(--primary); }
+        .quantity-badge { background: #edf2f7; font-weight: bold; padding: 6px 10px; border-radius: 6px; color: var(--dark); }
+        .promo-badge { background: var(--promo-color); color: #000; font-size: 0.75rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
+        .item-text { font-size: 1.05rem; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+        .completed { opacity: 0.6; } .completed .item-text { text-decoration: line-through; color: #95a5a6; }
+        .btn-delete { background: none; color: #e74c3c; font-size: 1.2rem; padding: 4px; margin-left: 8px; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         @media (max-width: 580px) { ul { grid-template-columns: 1fr; gap: 8px; } }
-
         @media print {
-            body { background: var(--white); color: #000000; padding: 0; max-width: 100%; }
-            #login-screen, .controls, .input-container, .btn-delete, #toast, .btn-clear-all, .btn-logout, .flyers-container, .promo-toggle-container { display: none !important; }
+            body { background: white; color: #000; padding: 0; }
+            #login-screen, .controls, .input-container, .btn-delete, .btn-clear-all, .btn-logout, .flyers-container, .promo-toggle-container { display: none !important; }
             #app-screen { display: block !important; }
             ul { grid-template-columns: repeat(2, 1fr) !important; gap: 15px !important; display: grid !important; }
-            li { box-shadow: none; border-bottom: 1px solid #cbd5e1; border-radius: 0; padding: 8px 0; page-break-inside: avoid; }
-            .quantity-badge { border: 1px solid #cbd5e1; background: none; cursor: default; }
+            li { box-shadow: none; border-bottom: 1px solid #cbd5e1; border-radius: 0; padding: 8px 0; }
         }
     </style>
 </head>
 <body>
-
-    <!-- 🔒 LOGIN SCREEN -->
     <div id="login-screen">
         <div class="login-box">
             <h2 id="login-title">🔒 Area Riservata</h2>
-            <p id="login-desc">Inserisci la password per accedere alla tua lista della spesa</p>
+            <p id="login-desc">Inserisci la password per accedere</p>
             <form onsubmit="checkPassword(event)">
                 <input type="password" id="password-input" placeholder="Password..." required>
-                <button type="submit">Accedi</button>
+                <button type="submit" class="btn-main" style="width:100%">Accedi</button>
             </form>
         </div>
     </div>
-
-    <!-- 📱 APP SCREEN -->
     <div id="app-screen">
         <div class="header-container">
             <h1>🛒 SpesaApp & Promo</h1>
             <button class="btn-logout" onclick="logout()">Esci</button>
         </div>
-
-        <!-- 🔗 LINK CORRETTI E FUNZIONANTI AI SITI UFFICIALI -->
-   <script>
+        <div class="flyers-container">
+            <a href="https://conad.it" target="_blank" class="flyer-card conad">Volantino Conad</a>
+            <a href="https://superpan.it" target="_blank" class="flyer-card iperpan">Volantino Iperpan</a>
+        </div>
+        <form class="input-container" onsubmit="addItemManual(event)">
+            <input type="text" id="item-input" placeholder="Aggiungi articolo..." required>
+            <button type="submit" class="btn-main">Aggiungi</button>
+        </form>
+        <label class="promo-toggle-container">
+            <input type="checkbox" id="promo-checkbox"> <span>In offerta sul volantino (% sconto)</span>
+        </label>
+        <div class="controls">
+            <button id="btn-vocal" type="button" onclick="startVoiceRecognition()">🎙️ Parla</button>
+            <button id="btn-print" type="button" onclick="window.print()">🖨️ Stampa</button>
+        </div>
+        <ul id="shopping-list"></ul>
+        <button class="btn-clear-all" onclick="clearAllItems()">🗑️ Svuota Intera Lista</button>
+    </div>
+    <script>
         let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
         let systemPassword = localStorage.getItem('secure_app_password');
-
         window.addEventListener('DOMContentLoaded', () => {
             if (!systemPassword) {
-                document.getElementById('login-title').innerText = '🆕 Scegli una Password';
-                document.getElementById('login-desc').innerText = 'È il primo avvio. Imposta una password segreta per questo dispositivo.';
+                document.getElementById('login-title').innerText = '🆕 Imposta Password';
+                document.getElementById('login-desc').innerText = 'Scegli un codice segreto di sblocco per questa applicazione.';
             }
         });
-
         function checkPassword(e) {
             e.preventDefault();
             const input = document.getElementById('password-input').value;
-
             if (!systemPassword) {
-                if (input.trim().length < 4) {
-                    alert("La password deve contenere almeno 4 caratteri.");
-                    return;
-                }
-                localStorage.setItem('secure_app_password', input);
-                systemPassword = input;
-                showToast("Password salvata!", "add-notify");
-                unlockApp();
+                if (input.trim().length < 4) { alert("Usa almeno 4 caratteri."); return; }
+                localStorage.setItem('secure_app_password', input); systemPassword = input; unlockApp();
             } else {
-                if (input === systemPassword) {
-                    unlockApp();
-                } else {
-                    alert("Password errata!");
-                    document.getElementById('password-input').value = '';
-                }
+                if (input === systemPassword) { unlockApp(); } else { alert("Password errata!"); document.getElementById('password-input').value = ''; }
             }
         }
-
-        function unlockApp() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'block';
-            renderItems();
-        }
-
-        function logout() {
-            document.getElementById('password-input').value = '';
-            document.getElementById('app-screen').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-        }
-
-        function saveItems() {
-            localStorage.setItem('secure_shopping_items', JSON.stringify(items));
-        }
-
+        function unlockApp() { document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; renderItems(); }
+        function logout() { document.getElementById('password-input').value = ''; document.getElementById('app-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; }
+        function saveItems() { localStorage.setItem('secure_shopping_items', JSON.stringify(items)); }
         function addItemManual(e) {
             e.preventDefault();
             const input = document.getElementById('item-input');
             const isPromo = document.getElementById('promo-checkbox').checked;
-            const value = input.value.trim();
-            if (value) {
-                processAndAddItem(value, isPromo);
-                input.value = '';
-                document.getElementById('promo-checkbox').checked = false;
-            }
+            if (input.value.trim()) { processAndAddItem(input.value.trim(), isPromo); input.value = ''; document.getElementById('promo-checkbox').checked = false; }
         }
-
         function processAndAddItem(text, isPromo = false) {
-            let textLower = text.toLowerCase();
-            if (textLower.includes('offerta') || textLower.includes('volantino') || textLower.includes('sconto')) {
-                isPromo = true;
-                text = text.replace(/offerta|volantino|sconto/gi, '').trim();
-            }
-
-            const words = text.toLowerCase().split(' ');
-            let qty = 1;
-            let name = text;
-
-            const lastWordAsInt = parseInt(words[words.length - 1]);
-            if (!isNaN(lastWordAsInt) && lastWordAsInt > 0) {
-                qty = lastWordAsInt;
-                words.pop();
-                name = words.join(' ');
-            } else {
-                const firstWordAsInt = parseInt(words);
-                if (!isNaN(firstWordAsInt) && firstWordAsInt > 0) {
-                    qty = firstWordAsInt;
-                    words.shift();
-                    name = words.join(' ');
-                }
-            }
-
+            let tl = text.toLowerCase();
+            if (tl.includes('offerta') || tl.includes('volantino') || tl.includes('sconto')) { isPromo = true; text = text.replace(/offerta|volantino|sconto/gi, '').trim(); }
+            const words = text.split(' '); let qty = 1; let name = text;
+            const lastW = parseInt(words[words.length - 1]);
+            if (!isNaN(lastW) && lastW > 0) { qty = lastW; words.pop(); name = words.join(' '); }
+            else { const firstW = parseInt(words); if (!isNaN(firstW) && firstW > 0) { qty = firstW; words.shift(); name = words.join(' '); } }
             name = name.charAt(0).toUpperCase() + name.slice(1);
-
-            const existingItem = items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.promo === isPromo);
-            if (existingItem) {
-                existingItem.qty += qty;
-                showToast(`Aggiornato: ${name} (x${existingItem.qty})`, "update-notify");
-            } else {
-                items.push({ id: Date.now(), name, qty, checked: false, promo: isPromo });
-                showToast(`Aggiunto: ${name}`, "add-notify");
-            }
-
-            saveItems();
-            renderItems();
+            const exist = items.find(i => i.name.toLowerCase() === name.toLowerCase() && i.promo === isPromo);
+            if (exist) { exist.qty += qty; } else { items.push({ id: Date.now(), name, qty, checked: false, promo: isPromo }); }
+            saveItems(); renderItems();
         }
-
-        function toggleItem(id) {
-            const item = items.find(i => i.id === id);
-            if (item) {
-                item.checked = !item.checked;
-                saveItems();
-                renderItems();
-            }
-        }
-
+        function toggleItem(id) { const item = items.find(i => i.id === id); if (item) { item.checked = !item.checked; saveItems(); renderItems(); } }
         function changeQuantity(id, e) {
-            e.stopPropagation();
-            const item = items.find(i => i.id === id);
-            if (item) {
-                let newQty = prompt(`Modifica quantità per ${item.name}:`, item.qty);
-                newQty = parseInt(newQty);
-                if (!isNaN(newQty) && newQty > 0) {
-                    item.qty = newQty;
-                    saveItems();
-                    renderItems();
-                    showToast("Quantità aggiornata", "update-notify");
-                }
-            }
+            e.stopPropagation(); const item = items.find(i => i.id === id);
+            if (item) { let n = parseInt(prompt(`Modifica quantità per ${item.name}:`, item.qty)); if (!isNaN(n) && n > 0) { item.qty = n; saveItems(); renderItems(); } }
         }
-
-        function deleteItem(id, e) {
-            e.stopPropagation();
-            items = items.filter(i => i.id !== id);
-            saveItems();
-            renderItems();
-        }
-
-        function clearAllItems() {
-            if (confirm("Vuoi cancellare definitivamente tutti gli articoli dalla lista?")) {
-                items = [];
-                saveItems();
-                renderItems();
-                showToast("Lista svuotata");
-            }
-        }
-
-        function showToast(text, className = "") {
-            const toast = document.getElementById('toast');
-            toast.innerText = text;
-            toast.className = `show ${className}`;
-            setTimeout(() => { toast.classList.remove('show'); }, 2500);
-        }
-
+        function deleteItem(id, e) { e.stopPropagation(); items = items.filter(i => i.id !== id); saveItems(); renderItems(); }
+        function clearAllItems() { if (confirm("Vuoi cancellare tutto?")) { items = []; saveItems(); renderItems(); } }
         function startVoiceRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
-            
-            if (!SpeechRecognition) {
-                alert("Il riconoscimento vocale non è supportato da questo browser. Usa Safari su iPhone.");
-                return;
-            }
-
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'it-IT';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            const btn = document.getElementById('btn-vocal');
-            btn.classList.add('listening');
-            btn.innerText = '🛑 Ascolto...';
-
-            recognition.start();
-
-            recognition.onresult = function(event) {
-                const speechResult = event.results[0][0].transcript;
-                if (speechResult.trim()) {
-                    processAndAddItem(speechResult.trim());
-                }
-            };
-
-            recognition.onspeechend = function() {
-                recognition.stop();
-                resetVocalButton();
-            };
-
-            recognition.onerror = function(event) {
-                console.error("Speech error: " + event.error);
-                resetVocalButton();
-            };
-
-            function resetVocalButton() {
-                btn.classList.remove('listening');
-                btn.innerText = '🎙️ Parla';
-            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) { alert("Vocale non supportato su questo browser. Usa Safari."); return; }
+            const rec = new SpeechRecognition(); rec.lang = 'it-IT';
+            const btn = document.getElementById('btn-vocal'); btn.classList.add('listening'); btn.innerText = '🛑 Ascolto...';
+            rec.start();
+            rec.onresult = function(event) { const res = event.results[event.results.length - 1].transcript; if (res.trim()) { processAndAddItem(res.trim()); } };
+            rec.onspeechend = function() { rec.stop(); resetB(); }; rec.onerror = function() { resetB(); };
+            function resetB() { btn.classList.remove('listening'); btn.innerText = '🎙️ Parla'; }
         }
-
         function renderItems() {
-            const list = document.getElementById('shopping-list');
-            list.innerHTML = '';
-
-            items.sort((a, b) => a.checked - b.checked);
-
+            const list = document.getElementById('shopping-list'); list.innerHTML = ''; items.sort((a, b) => a.checked - b.checked);
             items.forEach(item => {
-                const li = document.createElement('li');
-                li.className = (item.checked ? 'completed ' : '') + (item.promo ? 'is-promo-item' : '');
-
-                li.innerHTML = `
-                    <div class="item-content" onclick="toggleItem(${item.id})">
-                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})">
-                        <span class="item-text">${item.name}</span>
-                        ${item.promo ? '<span class="promo-badge">% PROMO</span>' : ''}
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <button class="quantity-badge" onclick="changeQuantity(${item.id}, event)">x${item.qty}</button>
-                        <button class="btn-delete" onclick="deleteItem(${item.id}, event)">🗑️</button>
-                    </div>
-                `;
+                const li = document.createElement('li'); li.className = (item.checked ? 'completed ' : '') + (item.promo ? 'is-promo-item' : '');
+                li.innerHTML = `<div class="item-content" onclick="toggleItem(${item.id})"><input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})"><span class="item-text">${item.name}</span>${item.promo ? '<span class="promo-badge">% PROMO</span>' : ''}</div><div style="display:flex;align-items:center;"><button type="button" class="quantity-badge" onclick="changeQuantity(${item.id}, event)">x${item.qty}</button><button type="button" class="btn-delete" onclick="deleteItem(${item.id}, event)">🗑️</button></div>`;
                 list.appendChild(li);
             });
         }
     </script>
 </body>
-</html>     
+</html>
