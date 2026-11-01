@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista della Spesa Protetta</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #45a049;
+            --accent: #ff5722;
+            --accent-dark: #e64a19;
+            --print-btn: #2196F3;
+            --danger: #e74c3c;
+            --danger-dark: #c0392b;
+            --dark: #2c3e50;
+            --light: #f8f9fa;
+            --white: #ffffff;
+            --gray: #e2e8f0;
+            --badge-bg: #edf2f7;
+            --badge-color: #4a5568;
+            --border: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            text-align: center;
+        }
+
+        .login-box {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 360px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        .login-box input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            text-align: center;
+        }
+
+        .login-box input[type="password"]:focus {
+            border-color: var(--primary);
+        }
+
+        .login-box button {
+            width: 100%;
+            background-color: var(--primary);
+        }
+
+        #app-screen {
+            display: none;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+        }
+
+        .btn-logout {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            background-color: #7f8c8d;
+            border-radius: 6px;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .input-container input[type="text"] {
+            flex: 1;
+            padding: 14px;
+            font-size: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-container input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        .input-container button {
+            flex: none;
+            width: auto;
+            padding: 0 20px;
+            background-color: var(--primary);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 14px 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s, transform 0.1s;
+            color: var(--white);
+        }
+
+        button:active { transform: scale(0.98); }
+        #btn-vocal { flex: 1; background-color: var(--accent); }
+        #btn-vocal.listening { background-color: var(--accent-dark); animation: pulse 1.5s infinite; }
+        #btn-print { flex: 1; background-color: var(--print-btn); }
+        
+        .btn-clear-all {
+            width: 100%;
+            background-color: var(--danger);
+            margin-top: 20px;
+        }
+        .btn-clear-all:hover { background-color: var(--danger-dark); }
+
+        ul {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            list-style: none;
+        }
+
+        li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: opacity 0.2s;
+        }
+
+        .item-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        li input[type="checkbox"] {
+            transform: scale(1.3);
+            cursor: pointer;
+            accent-color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .quantity-badge {
+            background-color: var(--badge-bg);
+            color: var(--badge-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+
+        .quantity-badge:hover { background-color: #cbd5e1; }
+
+        li span.item-text {
+            font-size: 1.05rem;
+            word-break: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .completed { opacity: 0.6; }
+        .completed .item-text { text-decoration: line-through; color: #95a5a6; }
+
+        .btn-delete {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 4px;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-weight: bold;
+            font-size: 0.95rem;
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.update-notify { background-color: #2196F3; }
+        #toast.add-notify { background-color: #4CAF50; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @media (max-width: 580px) {
+            ul { grid-template-columns: 1fr; gap: 8px; }
+        }
+
+        @media print {
+            body { background: var(--white); color: #000000; padding: 0; max-width: 100%; }
+            #login-screen, .controls, .input-container, .btn-delete, #toast, .btn-clear-all, .btn-logout { display: none !important; }
+            #app-screen { display: block !important; }
+            ul { grid-template-columns: repeat(2, 1fr) !important; gap: 15px !important; display: grid !important; }
+            li { box-shadow: none; border-bottom: 1px solid #cbd5e1; border-radius: 0; padding: 8px 0; page-break-inside: avoid; }
+            .quantity-badge { border: 1px solid #cbd5e1; background: none; cursor: default; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h2>🔒 Area Riservata</h2>
+            <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 15px;">Inserisci la password per accedere alla tua lista della spesa</p>
+            <input type="password" id="password-input" placeholder="Password" onkeypress="handleLoginKeyPress(event)">
+            <button onclick="checkPassword()">Accedi</button>
+        </div>
+    </div>
+
+    <div id="app-screen">
+        <div class="header-container">
+            <h1>🛒 Lista della Spesa</h1>
+            <button class="btn-logout" onclick="logout()">🔒 Esci</button>
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="manual-input" placeholder="Scrivi es: 2 pacchi di pasta o pane..." onkeypress="handleKeyPress(event)">
+            <button onclick="addManualItem()">➕ Aggiungi</button>
+        </div>
+
+        <div class="controls">
+            <button id="btn-vocal" onclick="startRecognition()">🎙️ Detta Alimento</button>
+            <button id="btn-print" onclick="window.print()">🖨️ Stampa / PDF</button>
+        </div>
+
+        <ul id="shopping-list"></ul>
+
+        <button class="btn-clear-all" id="btn-clear" onclick="clearAllItems()">🗑️ Svuota Intera Lista</button>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+        const CORRECT_PASSWORD_HASH = "Spesa2026"; 
+        let shoppingItems = [];
+        let toastTimeout;
+
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            if (input === CORRECT_PASSWORD_HASH) {
+                sessionStorage.setItem('spesa_authenticated', 'true');
+                showApp();
+            } else {
+                alert("Password errata! Riprova.");
+                document.getElementById('password-input').value = '';
+            }
+        }
+
+        function handleLoginKeyPress(event) {
+            if (event.key === 'Enter') { checkPassword(); }
+        }
+
+        // Forza ripristino per array regex malformato nei messaggi precedenti
+        function showApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            shoppingItems = JSON.parse(localStorage.getItem('my_shopping_list_v7')) || [];
+            renderList();
+        }
+
+        function logout() {
+            sessionStorage.removeItem('spesa_authenticated');
+            document.getElementById('password-input').value = '';
+            document.getElementById('app-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+        }
+
+        window.onload = function() {
+            if (sessionStorage.getItem('spesa_authenticated') === 'true') {
+                showApp();
+            }
+        }
+
+        function speakConfirmation(phrase) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(phrase);
+                utterance.lang = 'it-IT';
+                utterance.rate = 1.1;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function showNotification(message, type, vocalPhrase) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.className = 'show ' + type;
+            
+            if (vocalPhrase) { speakConfirmation(vocalPhrase); }
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.className = ''; }, 3000);
+        }
+
+        function renderList() {
+            const listContainer = document.getElementById('shopping-list');
+            const clearBtn = document.getElementById('btn-clear');
+            listContainer.innerHTML = '';
+
+            if (shoppingItems.length === 0) {
+                listContainer.innerHTML = '<li style="grid-column: span 2; justify-content: center; color: #7f8c8d; font-style: italic; background: none; box-shadow: none;">La lista è vuota. Scrivi o detta un alimento!</li>';
+                clearBtn.style.display = 'none';
+                return;
+            } else {
+                clearBtn.style.display = 'flex';
+            }
+
+            shoppingItems.forEach((item, index) => {
+                const li = document.createElement('li');
+                if (item.done) li.classList.add('completed');
+
+                li.innerHTML = `
+                    <div class="item-content" onclick="toggleItem(${index})">
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onclick="event.stopPropagation(); toggleItem(${index})">
+                        <button class="quantity-badge" onclick="event.stopPropagation(); editQuantity(${index})" title="Modifica quantità">x${item.quantity}</button>
+                        <span class="item-text" title="${item.text}">${item.text}</span>
+                    </div>
+                    <button class="btn-delete" onclick="deleteItem(${index})" title="Elimina">🗑️</button>
+                `;
+                listContainer.appendChild(li);
+            });
+
+            localStorage.setItem('my_shopping_list_v7', JSON.stringify(shoppingItems));
+        }
+
+        function addManualItem() {
+            const inputEl = document.getElementById('manual-input');
+            if (inputEl.value.trim() !== '') {
+                parseAndAddItem(inputEl.value);
+                inputEl.value = '';
+                inputEl.focus();
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') { addManualItem(); }
+        }
+
+        function parseAndAddItem(rawText) {
+            let text = rawText.toLowerCase().trim();
+            let quantity = 1;
+            let foodText = rawText;
+
+            const numberRegex = /^(\d+(?:[\.,]\d+)?)\s*(?:x|di)?\s*(.*)$/;
+            const digitMatch = text.match(numberRegex);
+
+            if (digitMatch) {
+                quantity = parseFloat(digitMatch[1].replace(',', '.'));
+                foodText = digitMatch[2];
+            } else {
+                const wordsToNumbers = {
+                    "un": 1, "una": 1, "uno": 1, "due": 2, "tre": 3, 
+                    "quattro": 4, "cinque": 5, "sei": 6, "sette": 7, 
+                    "otto": 8, "nove": 9, "dieci": 10
+                };
+
+                const words = text.split(" ");
+                const firstWord = words[0];
+                if (wordsToNumbers[firstWord]) {
+                    quantity = wordsToNumbers[firstWord];
+                    foodText = text.substring(firstWord.length).trim();
+                }
+            }
+
+            if (foodText.startsWith("di ")) { foodText = foodText.substring(3).trim(); }
+            if (foodText.trim() === '') { foodText = rawText; quantity = 1; }
+
+            const formattedText = foodText.charAt(0).toUpperCase() + foodText.slice(1);
+            const existingItemIndex = shoppingItems.findIndex(item => item.text.toLowerCase() === formattedText.toLowerCase());
+
+            if (existingItemIndex !== -1) {
+                shoppingItems[existingItemIndex].quantity += quantity;
+                shoppingItems[existingItemIndex].done = false;
+                const total = shoppingItems[existingItemIndex].quantity;
+                showNotification(
+                    `+ Aggiornata quantità per ${formattedText} (Totale: x${total})`, 
+                    'update-notify',
+                    `Quantità aggiornata per ${formattedText}. Totale ${total}`
+                );
+            } else {
+                shoppingItems.push({ text: formattedText, quantity: quantity, done: false });
+                showNotification(
+                    `✓ Aggiunto: x${quantity} ${formattedText}`, 
+                    'add-notify',
+                    `Aggiunto ${quantity} ${formattedText}`
+                );
+            }
+
+            renderList();
+        }
+
+        function editQuantity(index) {
+            const currentQty = shoppingItems[index].quantity;
+            const name = shoppingItems[index].text;
+            const newQtyStr = prompt(`Modifica la quantità per "${name}":`, currentQty);
+            
+            if (newQtyStr !== null) {
+                const newQty = parseFloat(newQtyStr.replace(',', '.'));
+                if (!isNaN(newQty) && newQty > 0) {
+                    shoppingItems[index].quantity = newQty;
+                    showNotification(`Modificato: ${name} a x${newQty}`, 'update-notify', `Quantità modificata a ${newQty}`);
+                    renderList();
+                } else if (newQty === 0) {
+                    deleteItem(index);
+                } else {
+                    alert("Inserisci un numero valido.");
+                }
+            }
+        }
+
+        function toggleItem(index) {
+            shoppingItems[index].done = !shoppingItems[index].done;
+            renderList();
+        }
+
+        function deleteItem(index) {
+            const name = shoppingItems[index].text;
+            shoppingItems.splice(index, 1);
+            showNotification(`🗑️ Rimosso ${name}`, 'update-notify', `Rimosso ${name}`);
+            renderList();
+        }
+
+        function clearAllItems() {
+            if (confirm("Sei sicuro di voler cancellare tutti gli elementi dalla lista della spesa?")) {
+                shoppingItems = [];
+                showNotification(`🗑️ Lista completamente svuotata`, 'update-notify', `Lista della spesa svuotata`);
+                renderList();
+            }
+        }
+
+        function startRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Il riconoscimento vocale non è supportato da questo browser. Usa Google Chrome o Safari.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'it-IT';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const vocalBtn = document.getElementById('btn-vocal');
+            recognition.onstart = function() {
+                vocalBtn.innerText = "🛑 Ascolto...";
+                vocalBtn.classList.add('listening');
+            };
+
+            recognition.onerror = function(event) {
+                console.error(event.error);
+                if (event.error === 'not-allowed') {
+                    alert("Il microfono è bloccato. Su GitHub Pages assicurati che l'indirizzo inizi con https:// per consentire i permessi di sicurezza.");
+                } else {
+                    alert("Non ho sentito bene, prova a ripetere.");
+                }
+            };
+
+            recognition.onend = function() {
+                vocalBtn.innerText = "🎙️ Detta Alimento";
+                vocalBtn.classList.remove('listening');
+            };
+
+            recognition.onresult = function(event) {
+                const speechToText = event.results[0][0].transcript;
+                parseAndAddItem(speechToText);
+            };
+
+            recognition.start();
+        }
+    </script>
+</body>
+</html>
