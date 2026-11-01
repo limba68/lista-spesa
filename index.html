@@ -325,3 +325,212 @@
     </div>
 
     <div id="toast"></div>
+    <script>
+        let items = JSON.parse(localStorage.getItem('secure_shopping_items')) || [];
+        let systemPassword = localStorage.getItem('secure_app_password');
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!systemPassword) {
+                document.getElementById('login-title').innerText = '🆕 Scegli una Password';
+                document.getElementById('login-desc').innerText = 'È il primo avvio. Imposta una password segreta per questo dispositivo.';
+            }
+        });
+
+        function checkPassword(e) {
+            e.preventDefault();
+            const input = document.getElementById('password-input').value;
+
+            if (!systemPassword) {
+                if (input.trim().length < 4) {
+                    alert("La password deve contenere almeno 4 caratteri.");
+                    return;
+                }
+                localStorage.setItem('secure_app_password', input);
+                systemPassword = input;
+                showToast("Password salvata!", "add-notify");
+                unlockApp();
+            } else {
+                if (input === systemPassword) {
+                    unlockApp();
+                } else {
+                    alert("Password errata!");
+                    document.getElementById('password-input').value = '';
+                }
+            }
+        }
+
+        function unlockApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            renderItems();
+        }
+
+        function logout() {
+            document.getElementById('password-input').value = '';
+            document.getElementById('app-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+        }
+
+        function saveItems() {
+            localStorage.setItem('secure_shopping_items', JSON.stringify(items));
+        }
+
+        function addItemManual(e) {
+            e.preventDefault();
+            const input = document.getElementById('item-input');
+            const value = input.value.trim();
+            if (value) {
+                processAndAddItem(value);
+                input.value = '';
+            }
+        }
+
+        function processAndAddItem(text) {
+            const words = text.toLowerCase().split(' ');
+            let qty = 1;
+            let name = text;
+
+            const lastWordAsInt = parseInt(words[words.length - 1]);
+            if (!isNaN(lastWordAsInt) && lastWordAsInt > 0) {
+                qty = lastWordAsInt;
+                words.pop();
+                name = words.join(' ');
+            } else {
+                const firstWordAsInt = parseInt(words);
+                if (!isNaN(firstWordAsInt) && firstWordAsInt > 0) {
+                    qty = firstWordAsInt;
+                    words.shift();
+                    name = words.join(' ');
+                }
+            }
+
+            name = name.charAt(0).toUpperCase() + name.slice(1);
+
+            const existingItem = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+            if (existingItem) {
+                existingItem.qty += qty;
+                showToast(`Aggiornato: ${name} (x${existingItem.qty})`, "update-notify");
+            } else {
+                items.push({ id: Date.now(), name, qty, checked: false });
+                showToast(`Aggiunto: ${name}`, "add-notify");
+            }
+
+            saveItems();
+            renderItems();
+        }
+
+        function toggleItem(id) {
+            const item = items.find(i => i.id === id);
+            if (item) {
+                item.checked = !item.checked;
+                saveItems();
+                renderItems();
+            }
+        }
+
+        function changeQuantity(id, e) {
+            e.stopPropagation();
+            const item = items.find(i => i.id === id);
+            if (item) {
+                let newQty = prompt(`Modifica quantità per ${item.name}:`, item.qty);
+                newQty = parseInt(newQty);
+                if (!isNaN(newQty) && newQty > 0) {
+                    item.qty = newQty;
+                    saveItems();
+                    renderItems();
+                    showToast("Quantità aggiornata", "update-notify");
+                }
+            }
+        }
+
+        function deleteItem(id, e) {
+            e.stopPropagation();
+            items = items.filter(i => i.id !== id);
+            saveItems();
+            renderItems();
+        }
+
+        function clearAllItems() {
+            if (confirm("Vuoi cancellare definitivamente tutti gli articoli dalla lista?")) {
+                items = [];
+                saveItems();
+                renderItems();
+                showToast("Lista svuotata");
+            }
+        }
+
+        function showToast(text, className = "") {
+            const toast = document.getElementById('toast');
+            toast.innerText = text;
+            toast.className = `show ${className}`;
+            setTimeout(() => { toast.classList.remove('show'); }, 2500);
+        }
+
+        function startVoiceRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert("Il riconoscimento vocale non è supportato da questo browser. Usa Safari su iPhone.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'it-IT';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            const btn = document.getElementById('btn-vocal');
+            btn.classList.add('listening');
+            btn.innerText = '🛑 Ascolto...';
+
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const speechResult = event.results[event.results.length - 1][0].transcript;
+                if (speechResult.trim()) {
+                    processAndAddItem(speechResult.trim());
+                }
+            };
+
+            recognition.onspeechend = function() {
+                recognition.stop();
+                resetVocalButton();
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech error: " + event.error);
+                resetVocalButton();
+            };
+
+            function resetVocalButton() {
+                btn.classList.remove('listening');
+                btn.innerText = '🎙️ Parla';
+            }
+        }
+
+        function renderItems() {
+            const list = document.getElementById('shopping-list');
+            list.innerHTML = '';
+
+            items.sort((a, b) => a.checked - b.checked);
+
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = item.checked ? 'completed' : '';
+
+                li.innerHTML = `
+                    <div class="item-content" onclick="toggleItem(${item.id})">
+                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})">
+                        <span class="item-text">${item.name}</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <button class="quantity-badge" onclick="changeQuantity(${item.id}, event)">x${item.qty}</button>
+                        <button class="btn-delete" onclick="deleteItem(${item.id}, event)">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
