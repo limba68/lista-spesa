@@ -63,25 +63,35 @@ function notifyUser(textMessage, vocalMessage, type = 'info') {
     }
 }
 
-// Riconosce le diciture "n.", "n°", "numero" estraendo correttamente i pezzi del prodotto
+// Nuova logica di estrazione vocale rinforzata contro abbreviazioni, punti e spazi
 function parseQuantityAndName(rawInput) {
-    let text = rawInput.trim();
+    let text = rawInput.trim().toLowerCase();
     
-    // Pulisce abbreviazioni come "n.", "n°", "numero" o "pezzi" prima o dopo il numero
-    text = text.replace(/^(numero|n\.|n°|pezzi di|pezzo di|pacchi di|pacco di|bottiglie di|bottiglia di|x)\s+/i, '');
+    // 1. Rimuove prefissi testuali ed espressioni come "numero", "n.", "n°", "pezzi di" ovunque all'inizio
+    text = text.replace(/^(numero|n\.|n°|pezzi di|pezzo di|pacchi di|pacco di|bottiglie di|bottiglia di|quantità|q\.ta|x)\s*/g, '');
     
-    // Gestisce formati vocali del tipo "n. 3 latte" o "3 latte"
+    // 2. Rimuove ulteriormente eventuali punti o spazi rimasti attaccati (es: ".3" o " . 3")
+    text = text.replace(/^[\.\s°#\-x]+/g, '').trim();
+
+    // 3. Intercetta il numero e isola il testo rimanente del prodotto
     const match = text.match(/^(\d+)\s+(.+)$/);
     
     if (match) {
         let quantity = parseInt(match[1], 10);
         let name = match[2].trim();
-        // Rimuove congiunzioni residue (es: "3 di numero pezzi latte" -> "latte")
-        name = name.replace(/^(di numero pezzi|di numero pezzo|numero pezzi|pezzi di|pezzo di|di|del|dei|delle)\s+/i, '');
+        
+        // Rimuove parole di raccordo residue inserite dalla sintesi vocale (es: "3 di pane" -> "pane")
+        name = name.replace(/^(di numero pezzi|di numero pezzo|numero pezzi|pezzi di|pezzo di|di|del|dei|delle)\s+/g, '');
+        
+        // Ripristina la prima lettera maiuscola per estetica nella lista
+        name = name.charAt(0).toUpperCase() + name.slice(1);
+        
         return { quantity, name };
     }
     
-    return { quantity: 1, name: text };
+    // Se non viene rilevato alcun numero iniziale, imposta quantità 1 e applica la maiuscola
+    let defaultName = text.charAt(0).toUpperCase() + text.slice(1);
+    return { quantity: 1, name: defaultName };
 }
 
 function updateQuantityManual(id, newQuantity) {
